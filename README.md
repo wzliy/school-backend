@@ -20,6 +20,10 @@
 
 项目不是简单静态展示站，而是一个具备内容管理能力的高校官网系统。现有功能清单中已经明确包含 UI/UX 设计、官网前台开发、招生就业专题站、CMS 后台、接口联调、测试与质量保障等内容。
 
+本项目按轻量化方式建设，固定为一个官网主站、一个招生就业专题站和一套 CMS 后台，不建设复杂站群系统。标准整包报价建议为 **42.8 万元**，包含接口联调、测试上线、域名绑定及三年网站维护；压缩页面定制和非核心管理能力后，可采用约 **38.8 万元**的精简方案。详细范围、预算和里程碑以 `docs/plan.md` 为准。
+
+本期不建设多语言，不接入短信、邮件、支付，不建设复杂 BI，不进行深度智慧校园业务集成。范围外需求须单独进行变更评估。
+
 ---
 
 # 二、推荐技术栈
@@ -29,16 +33,16 @@
 建议使用：
 
 ```text
-Java 17
-Spring Boot 3.x
+Java 25
+Spring Boot 3.5.x
 Spring Security
 MyBatis Plus / MyBatis
 MySQL 8.x
-Redis
+Redis（按需启用）
 MinIO / 本地文件存储
 JWT
-Maven / Gradle
-Knife4j / OpenAPI
+Gradle 9.x
+OpenAPI / Swagger UI
 ```
 
 ## 2. 前端技术栈
@@ -101,11 +105,11 @@ Vue 3 + Vite
 │   ├── 后台管理 API
 │   ├── 文件上传 API
 │   ├── 搜索 API
-│   └── 第三方接口预留
+│   └── 前后台联调接口
 │
 └── 基础设施
     ├── MySQL
-    ├── Redis
+    ├── Redis（按需启用）
     ├── 文件存储
     ├── Nginx
     └── 部署脚本
@@ -464,7 +468,7 @@ Banner 管理
 专题栏目管理
 ```
 
-### 后续可扩展功能
+### 本期不建设
 
 ```text
 在线报名
@@ -476,7 +480,7 @@ Banner 管理
 短信/邮件通知
 ```
 
-第一版开发时，建议先把互动类功能设计成可扩展模块，不默认实现复杂业务。
+以上互动类功能不计入本项目报价。后续确有需求时，按独立变更重新评估，不在本期预留复杂业务实现。
 
 ---
 
@@ -643,7 +647,7 @@ site_type:
 1. 创建 backend Spring Boot 项目
 2. 创建 admin-web Vue 3 项目
 3. 创建 portal-web Vue 3 项目
-4. 配置 MySQL、Redis、文件上传
+4. 配置 MySQL、可选 Redis、文件上传
 5. 设计统一返回结构
 6. 设计全局异常处理
 7. 接入 OpenAPI 接口文档
@@ -843,12 +847,12 @@ PC 和移动端基本适配
 ## 任务 1：初始化后端项目
 
 ```text
-请基于 Java 17 + Spring Boot 3.x 创建高校官网 CMS 后端项目。
+请基于 Java 25 + Spring Boot 3.5.x 创建高校官网 CMS 后端项目。
 
 要求：
-1. 使用 Maven。
+1. 使用 Gradle 9.x。
 2. 包名为 com.example.collegeweb。
-3. 集成 Spring Web、Spring Validation、Spring Security、MyBatis、MySQL、Redis。
+3. 集成 Spring Web、Spring Validation、Spring Security、MyBatis、MySQL，并按需启用 Redis。
 4. 设计统一返回对象 ApiResult<T>。
 5. 设计分页返回对象 PageResult<T>。
 6. 设计全局异常处理 GlobalExceptionHandler。
@@ -1164,7 +1168,7 @@ Banner 字段包括：
 9. 视频转码
 ```
 
-这些作为二期扩展。
+同时不建设复杂站群、短信、邮件、支付、复杂 BI 和深度智慧校园业务集成。以上内容不属于当前报价，新增时应单独评估。
 
 ---
 
@@ -1229,14 +1233,14 @@ PC 和移动端展示正常
 项目采用前后端分离架构：
 
 后端：
-- Java 17
-- Spring Boot 3.x
+- Java 25
+- Spring Boot 3.5.x
 - Spring Security
 - MyBatis
 - MySQL 8
-- Redis
+- Redis（按需启用）
 - JWT
-- OpenAPI/Knife4j
+- OpenAPI / Swagger UI
 - 统一返回格式 ApiResult<T>
 - 全局异常处理
 - 参数校验
@@ -1301,9 +1305,9 @@ PC 和移动端展示正常
 6. 所有写操作记录操作日志。
 7. 接口命名符合 RESTful 风格。
 8. 代码中添加必要注释。
-9. 优先完成 MVP 版本，不实现在线报名、留言咨询、多级审核流、统一身份认证、多语言和等保整改。
+9. 优先完成轻量化交付，不实现复杂站群、在线报名、留言咨询、多级审核流、统一身份认证、多语言、短信、邮件、支付、复杂 BI、深度智慧校园集成和等保整改。
 ```
 
 ---
 
-这版规划适合你先让 Codex 开始搭项目。如果你后面确认客户需要“在线报名、留言咨询、统一认证、审核流、旧站迁移”，再作为二期模块单独扩展，不要一开始全塞进 MVP。
+这版规划适合按轻量化范围推进。若后续提出在线报名、留言咨询、统一认证、审核流或旧站迁移，应先走需求变更并重新评估费用、工期和架构影响。
