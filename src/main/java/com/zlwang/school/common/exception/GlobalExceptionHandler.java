@@ -6,6 +6,8 @@ import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -14,6 +16,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiResult<Void>> handleAuthenticationException(AuthenticationException ex) {
+        return ResponseEntity.status(ErrorCode.UNAUTHORIZED.httpStatus())
+            .body(ApiResult.failure(ErrorCode.UNAUTHORIZED));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResult<Void>> handleAccessDeniedException(AccessDeniedException ex) {
+        return ResponseEntity.status(ErrorCode.FORBIDDEN.httpStatus())
+            .body(ApiResult.failure(ErrorCode.FORBIDDEN));
+    }
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResult<Void>> handleBusinessException(BusinessException ex) {

@@ -32,6 +32,11 @@ springdoc:
     path: /swagger-ui.html
 
 app:
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:school-backend}
+      secret: ${JWT_SECRET}
+      access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT2H}
   file:
     storage-type: local
     local-path: ${FILE_LOCAL_PATH:/data/school/uploads}
