@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourcePerFileMappings">
+    <file url="file://$PROJECT_DIR$/src/main/java/com/zlwang/school/infrastructure/persistence/auth/AuthUserMapper.java" value="b07a8702-d077-4a45-bea3-270e917ed0e2" />
     <file url="file://$PROJECT_DIR$/src/main/resources/db/init.sql" value="b07a8702-d077-4a45-bea3-270e917ed0e2" />
   </component>
 </project>

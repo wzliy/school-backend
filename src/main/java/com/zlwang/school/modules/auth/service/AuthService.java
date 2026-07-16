@@ -30,6 +30,7 @@ public class AuthService {
                 UsernamePasswordAuthenticationToken.unauthenticated(request.username(), request.password())
             );
             AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+            assert user != null;
             return new LoginResponse(
                 "Bearer",
                 jwtTokenService.generateToken(user),

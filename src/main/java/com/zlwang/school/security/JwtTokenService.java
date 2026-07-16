@@ -1,50 +1,39 @@
 package com.zlwang.school.security;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Date;
-import javax.crypto.SecretKey;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 @Service
 public class JwtTokenService {
 
     private final JwtProperties properties;
-    private final SecretKey signingKey;
+    private final JwtEncoder jwtEncoder;
 
-    public JwtTokenService(JwtProperties properties) {
+    public JwtTokenService(JwtProperties properties, JwtEncoder jwtEncoder) {
         this.properties = properties;
-        this.signingKey = Keys.hmacShaKeyFor(properties.getSecret().getBytes(StandardCharsets.UTF_8));
+        this.jwtEncoder = jwtEncoder;
     }
 
     public String generateToken(AuthenticatedUser user) {
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plus(properties.getAccessTokenTtl());
-        return Jwts.builder()
+        JwtClaimsSet claims = JwtClaimsSet.builder()
             .issuer(properties.getIssuer())
             .subject(user.getUsername())
             .claim("uid", user.id())
-            .issuedAt(Date.from(issuedAt))
-            .expiration(Date.from(expiresAt))
-            .signWith(signingKey)
-            .compact();
-    }
-
-    public String parseUsername(String token) {
-        Claims claims = Jwts.parser()
-            .verifyWith(signingKey)
-            .requireIssuer(properties.getIssuer())
-            .build()
-            .parseSignedClaims(token)
-            .getPayload();
-        if (!StringUtils.hasText(claims.getSubject())) {
-            throw new IllegalArgumentException("JWT subject is missing");
-        }
-        return claims.getSubject();
+            .claim("authorities", user.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .distinct()
+                .sorted()
+                .toList())
+            .issuedAt(issuedAt)
+            .expiresAt(expiresAt)
+            .build();
+        return jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
     }
 
     public long expiresInSeconds() {

@@ -320,7 +320,7 @@ INSERT INTO sys_user (
 ) VALUES (
   1,
   'admin',
-  '$2y$10$AT7CX..4P1ofYP8xM/j5cOXEDIvskr6yCAtYz5WHIXBm97Luq5IWa',
+  '{bcrypt}$2y$10$AT7CX..4P1ofYP8xM/j5cOXEDIvskr6yCAtYz5WHIXBm97Luq5IWa',
   '超级管理员',
   'admin@example.com',
   1,

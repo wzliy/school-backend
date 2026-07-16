@@ -34,7 +34,7 @@ springdoc:
 app:
   security:
     jwt:
-      issuer: ${JWT_ISSUER:school-backend}
+      issuer: ${JWT_ISSUER:https://school-backend.local}
       secret: ${JWT_SECRET}
       access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT2H}
   file:

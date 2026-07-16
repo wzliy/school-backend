@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 public class LocalUserStore {
 
     private static final String ADMIN_PASSWORD_HASH =
-        "$2y$10$AT7CX..4P1ofYP8xM/j5cOXEDIvskr6yCAtYz5WHIXBm97Luq5IWa";
+        "{bcrypt}$2y$10$AT7CX..4P1ofYP8xM/j5cOXEDIvskr6yCAtYz5WHIXBm97Luq5IWa";
 
     private final AtomicLong userIdSequence = new AtomicLong(1L);
     private final Map<Long, LocalUser> users = new LinkedHashMap<>();

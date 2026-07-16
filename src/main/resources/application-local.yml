@@ -1,8 +1,8 @@
 spring:
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration
       - org.mybatis.spring.boot.autoconfigure.MybatisAutoConfiguration
 
 logging:
@@ -12,4 +12,4 @@ logging:
 app:
   security:
     jwt:
-      secret: ${JWT_SECRET:school-backend-local-jwt-secret-change-me-2026}
+      secret: ${JWT_SECRET:c2Nob29sLWJhY2tlbmQtbG9jYWwtand0LXNlY3JldC1jaGFuZ2UtbWUtMjAyNg==}

@@ -1,26 +1,30 @@
 package com.zlwang.school.modules.auth;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zlwang.school.common.api.ApiResult;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -32,6 +36,9 @@ class AuthControllerIntegrationTests {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private JwtDecoder jwtDecoder;
 
     @Test
     void loginReturnsJwtAndCurrentUser() throws Exception {
@@ -47,6 +54,18 @@ class AuthControllerIntegrationTests {
             .andExpect(jsonPath("$.data.user.roles[0]").value("SUPER_ADMIN"))
             .andExpect(jsonPath("$.data.user.permissions").isArray())
             .andExpect(jsonPath("$.data.user.menus").isArray());
+    }
+
+    @Test
+    void loginTokenContainsRequiredClaims() throws Exception {
+        Jwt jwt = jwtDecoder.decode(loginAndGetToken());
+
+        assertThat(jwt.getIssuer()).hasToString("https://school-backend.local");
+        assertThat(jwt.getSubject()).isEqualTo("admin");
+        assertThat(((Number) jwt.getClaims().get("uid")).longValue()).isEqualTo(1L);
+        assertThat(authorities(jwt)).contains("ROLE_SUPER_ADMIN", "system:user:create");
+        assertThat(jwt.getIssuedAt()).isNotNull();
+        assertThat(jwt.getExpiresAt()).isAfter(jwt.getIssuedAt());
     }
 
     @Test
@@ -114,11 +133,16 @@ class AuthControllerIntegrationTests {
             .andExpect(status().isOk())
             .andReturn();
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsByteArray());
-        return response.path("data").path("accessToken").asText();
+        return response.path("data").path("accessToken").stringValue();
     }
 
     private String loginBody(String username, String password) throws Exception {
         return objectMapper.writeValueAsString(new LoginBody(username, password));
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> authorities(Jwt jwt) {
+        return (List<String>) jwt.getClaims().get("authorities");
     }
 
     private record LoginBody(String username, String password) {

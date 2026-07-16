@@ -34,16 +34,20 @@
 
 ```text
 Java 25
-Spring Boot 3.5.x
-Spring Security
-MyBatis Plus / MyBatis
+Spring Boot 4.1.0
+Spring Security OAuth2 Resource Server
+MyBatis Spring Boot Starter 4.0.1 / MyBatis
 MySQL 8.x
 Redis（按需启用）
 MinIO / 本地文件存储
-JWT
+Spring Security JwtEncoder / JwtDecoder（HS256）
 Gradle 9.x
-OpenAPI / Swagger UI
+Springdoc OpenAPI 3.0.3 / Swagger UI
 ```
+
+当前工程已完成从 JJWT 和自定义认证过滤器到 Spring Security OAuth2 Resource Server 的迁移。令牌由 Spring `JwtEncoder` 签发，`JwtDecoder` 负责验签并校验签发方，业务代码不再直接依赖 JJWT。该模式仅用于本系统账号登录后的 Bearer Token 鉴权，不建设 OAuth2 授权服务器，也不引入第三方登录。
+
+Spring Boot 4.1 依赖、JWT 签发链路、认证 principal、密码哈希兼容和测试基线已按 `docs/plan.md` 的 P3.1 清单闭环。
 
 ## 2. 前端技术栈
 
@@ -188,7 +192,8 @@ college-official-website/
 
 ```text
 后台管理员登录
-JWT Token 生成与校验
+Spring JwtEncoder 生成 JWT Token
+OAuth2 Resource Server 校验 Bearer Token
 当前用户信息查询
 退出登录
 密码修改
@@ -847,12 +852,12 @@ PC 和移动端基本适配
 ## 任务 1：初始化后端项目
 
 ```text
-请基于 Java 25 + Spring Boot 3.5.x 创建高校官网 CMS 后端项目。
+请基于 Java 25 + Spring Boot 4.1.0 创建高校官网 CMS 后端项目。
 
 要求：
 1. 使用 Gradle 9.x。
 2. 包名为 com.example.collegeweb。
-3. 集成 Spring Web、Spring Validation、Spring Security、MyBatis、MySQL，并按需启用 Redis。
+3. 集成 Spring MVC、Spring Validation、Spring Security OAuth2 Resource Server、MyBatis、MySQL，并按需启用 Redis。
 4. 设计统一返回对象 ApiResult<T>。
 5. 设计分页返回对象 PageResult<T>。
 6. 设计全局异常处理 GlobalExceptionHandler。
@@ -903,11 +908,13 @@ PC 和移动端基本适配
 2. 登录成功返回 JWT Token。
 3. 提供获取当前用户信息接口。
 4. 支持退出登录。
-5. 使用 Spring Security 进行接口鉴权。
+5. 使用 Spring Security OAuth2 Resource Server 进行 Bearer Token 鉴权。
 6. 未登录返回 401。
 7. 无权限返回 403。
-8. 密码使用 BCrypt 加密。
-9. 接口统一使用 ApiResult 返回。
+8. 使用 Spring `JwtEncoder` 和 `JwtDecoder` 完成 HS256 签发与校验，不引入 JJWT。
+9. JWT 至少包含 `iss`、`sub`、`uid`、`authorities`、`iat` 和 `exp`，角色权限按当前数据库状态装载。
+10. 密码使用 BCrypt；使用委派编码器时，数据库密码必须带 `{bcrypt}` 前缀或提供旧哈希兼容方案。
+11. 接口统一使用 ApiResult 返回。
 ```
 
 ---
@@ -1234,13 +1241,13 @@ PC 和移动端展示正常
 
 后端：
 - Java 25
-- Spring Boot 3.5.x
-- Spring Security
-- MyBatis
+- Spring Boot 4.1.0
+- Spring Security OAuth2 Resource Server
+- MyBatis Spring Boot Starter 4.0.1
 - MySQL 8
 - Redis（按需启用）
-- JWT
-- OpenAPI / Swagger UI
+- Spring Security JwtEncoder / JwtDecoder（HS256）
+- Springdoc OpenAPI 3.0.3 / Swagger UI
 - 统一返回格式 ApiResult<T>
 - 全局异常处理
 - 参数校验

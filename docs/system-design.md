@@ -63,16 +63,33 @@
 | --- | --- |
 | 后端语言 | Java 25 |
 | 构建工具 | Gradle 9.x，编译与运行目标均为 Java 25 |
-| 后端框架 | Spring Boot 3.5.x |
-| 安全框架 | Spring Security + JWT |
-| 数据访问 | MyBatis |
+| 后端框架 | Spring Boot 4.1.0 |
+| 安全框架 | Spring Security OAuth2 Resource Server + Spring JwtEncoder/JwtDecoder |
+| 数据访问 | MyBatis Spring Boot Starter 4.0.1 / MyBatis |
 | 数据库 | MySQL 8.x |
 | 缓存 | Redis，可选启用 |
 | 文件存储 | 本地文件存储，保留 MinIO 适配接口 |
-| API 文档 | OpenAPI / Swagger UI |
+| API 文档 | Springdoc OpenAPI 3.0.3 / Swagger UI |
 | 后台前端 | Vue 3 + TypeScript + Vite + Element Plus |
 | 官网前台 | Vue 3 + TypeScript + Vite |
 | 部署入口 | Nginx + Java 25 服务 |
+
+### 3.3 Spring Boot 4 依赖基线
+
+Spring Boot 4 对 starter 和自动配置模块进行了拆分或重命名。工程升级时统一采用以下目标依赖，避免只修改 Boot 版本号造成构建或运行失败：
+
+| 能力 | Boot 4 目标依赖或版本 |
+| --- | --- |
+| Spring MVC | `spring-boot-starter-webmvc` |
+| AOP | `spring-boot-starter-aspectj` |
+| OAuth2 Resource Server | `spring-boot-starter-security-oauth2-resource-server` |
+| MyBatis | `mybatis-spring-boot-starter:4.0.1` |
+| OpenAPI | `springdoc-openapi-starter-webmvc-ui:3.0.3` |
+| 测试 | 按模块使用 Boot 4 test starter，并使用 `spring-boot-starter-security-test` |
+
+Boot 4 默认使用 Jackson 3。现有 Jackson 2 代码应整体迁移到 Jackson 3 包名；确需过渡时可短期使用 Boot 提供的 Jackson 2 兼容模块，但不得长期混用。自动配置排除项和测试注解也必须按 Boot 4 的新包名复核。
+
+版本基线核对日期为 2026-07-16，依据 [Spring Boot 4.1 发布说明](https://spring.io/blog/2026/06/10/spring-boot-4/)、[Spring Boot 系统要求](https://docs.spring.io/spring-boot/system-requirements.html)、[Spring Boot 4 迁移指南](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide)、[MyBatis Spring Boot 兼容矩阵](https://mybatis.org/spring-boot-starter/mybatis-spring-boot-autoconfigure/) 和 [springdoc v4 文档](https://springdoc.org/v4/index.html)。
 
 ## 4. 应用边界
 
@@ -159,7 +176,22 @@ Banner 管理
 
 ### 5.1 认证与权限
 
-认证模块负责后台登录、JWT 签发、当前用户信息查询、退出登录和密码修改。后台接口默认需要登录，公开 API 不需要登录。
+认证模块负责后台登录、JWT 签发、当前用户信息查询、退出登录和密码修改。后台接口默认需要登录，公开 API 不需要登录。账号密码仍由本系统校验，登录成功后使用 Spring `JwtEncoder` 签发访问令牌；后续请求由 Spring Security OAuth2 Resource Server 调用 `JwtDecoder` 完成签名、签发方和有效期校验。本项目不建设 OAuth2 授权服务器。
+
+JWT 契约如下：
+
+| Claim | 用途 |
+| --- | --- |
+| `iss` | 签发方，必须与服务端配置一致 |
+| `sub` | 用户名，作为账号查询标识 |
+| `uid` | 用户 ID，用于审计和一致性检查 |
+| `authorities` | `ROLE_` 前缀角色编码与权限编码列表 |
+| `iat` | 签发时间 |
+| `exp` | 过期时间 |
+
+令牌使用 HS256。`JWT_SECRET` 必须是 Base64 字符串，解码后不少于 32 字节，签发端和校验端必须复用同一 `SecretKey`。生产环境必须显式配置密钥，本地环境只能使用独立开发密钥。
+
+Resource Server 完成 JWT 基础校验后，认证转换器必须按 `sub` 重新查询账号、角色和权限，拒绝不存在、已删除或已禁用账号，并以 `AuthenticatedUser` 作为 principal。授权信息以数据库当前状态为准，使账号禁用和权限调整立即生效；JWT 中的 `authorities` 仅作为已签名快照，不作为绕过数据库状态检查的依据。这样可保持 `/api/admin/auth/me`、用户写操作的操作者 ID 和现有方法级权限校验契约一致。
 
 权限模型采用用户、角色、权限三层结构：
 
@@ -404,14 +436,24 @@ GET /api/portal/recruit/home
 
 ## 8. 安全设计
 
-1. 后台接口使用 Spring Security + JWT 鉴权。
-2. 密码使用 BCrypt 加密存储。
+1. 后台接口使用 Spring Security OAuth2 Resource Server + JWT 鉴权，JWT 签发与校验统一使用 Spring `JwtEncoder`、`JwtDecoder`，不直接依赖 JJWT。
+2. 密码使用 BCrypt 加密存储。若使用 `DelegatingPasswordEncoder`，密码字段统一保存 `{bcrypt}` 前缀；升级前已有的无前缀 BCrypt 数据须迁移或配置明确的兼容编码器。
 3. 未登录访问后台接口返回 401。
 4. 无权限访问后台接口返回 403。
 5. 文件上传限制大小、后缀和 MIME 类型。
 6. 富文本内容进入前台展示前进行安全处理，避免 XSS。
 7. 后台写操作记录操作日志，包含用户、IP、接口、参数摘要和执行结果。
 8. 管理员账号支持启用禁用和密码重置。
+
+### 8.1 Security 迁移验收条件
+
+1. Gradle 依赖树中不存在任何 `io.jsonwebtoken` 依赖，旧 JWT service 和 filter 已移除或不再参与编译。
+2. 登录签发的令牌可被同一服务的 `JwtDecoder` 校验，并包含完整 JWT 契约。
+3. `@AuthenticationPrincipal` 可稳定取得 `AuthenticatedUser`，当前用户接口和所有需要操作者 ID 的写接口通过测试。
+4. 用户禁用、删除或权限变更后，旧令牌在下一次请求立即按数据库当前状态处理。
+5. 初始化管理员密码和后续新增、重置密码采用同一种可验证的存储格式。
+6. 401、403 保持统一 JSON 响应；过期、伪造、签发方不匹配和权限不足场景均有自动化测试。
+7. `./gradlew clean test` 在 Java 25 下通过，应用可使用 local 配置启动。
 
 ## 9. 缓存设计
 
