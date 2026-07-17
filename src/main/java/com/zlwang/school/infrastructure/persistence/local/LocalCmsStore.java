@@ -9,18 +9,36 @@ import static com.zlwang.school.modules.template.model.PageTemplateKey.SERVICE_D
 import static com.zlwang.school.modules.template.model.PageTemplateKey.SINGLE_PAGE;
 import static com.zlwang.school.modules.template.model.SiteType.MAIN_SITE;
 import static com.zlwang.school.modules.template.model.SiteType.RECRUIT_SITE;
+import static com.zlwang.school.modules.page.model.PageCode.HOME;
+import static com.zlwang.school.modules.page.model.PageCode.RECRUIT_HOME;
+import static com.zlwang.school.modules.page.model.PageSectionType.CONTACT_INFO;
+import static com.zlwang.school.modules.page.model.PageSectionType.CONTENT_FEED;
+import static com.zlwang.school.modules.page.model.PageSectionType.FRIEND_LINKS;
+import static com.zlwang.school.modules.page.model.PageSectionType.HERO_BANNER;
+import static com.zlwang.school.modules.page.model.PageSectionType.IMAGE_GALLERY;
+import static com.zlwang.school.modules.page.model.PageSectionType.QUICK_LINKS;
 
 import com.zlwang.school.modules.column.dto.ColumnSortItem;
 import com.zlwang.school.modules.column.model.CmsColumn;
 import com.zlwang.school.modules.column.repository.CreateCmsColumn;
 import com.zlwang.school.modules.column.repository.UpdateCmsColumn;
 import com.zlwang.school.common.api.PageResult;
+import com.zlwang.school.modules.banner.dto.BannerSortItem;
+import com.zlwang.school.modules.banner.model.BannerLinkType;
+import com.zlwang.school.modules.banner.model.BannerPosition;
+import com.zlwang.school.modules.banner.model.CmsBanner;
+import com.zlwang.school.modules.banner.repository.CreateCmsBanner;
+import com.zlwang.school.modules.banner.repository.UpdateCmsBanner;
 import com.zlwang.school.modules.content.dto.ContentAttachmentRequest;
 import com.zlwang.school.modules.content.model.CmsContent;
 import com.zlwang.school.modules.content.model.ContentAttachment;
 import com.zlwang.school.modules.content.model.ContentStatus;
 import com.zlwang.school.modules.content.repository.CreateCmsContent;
 import com.zlwang.school.modules.content.repository.UpdateCmsContent;
+import com.zlwang.school.modules.page.model.PageCode;
+import com.zlwang.school.modules.page.model.PageSection;
+import com.zlwang.school.modules.page.model.PageSectionType;
+import com.zlwang.school.modules.page.repository.SavePageSection;
 import com.zlwang.school.modules.template.model.SiteType;
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -40,9 +58,13 @@ public class LocalCmsStore {
     private final AtomicLong columnIdSequence = new AtomicLong(203L);
     private final AtomicLong contentIdSequence = new AtomicLong();
     private final AtomicLong attachmentIdSequence = new AtomicLong();
+    private final AtomicLong pageSectionIdSequence = new AtomicLong(13L);
+    private final AtomicLong bannerIdSequence = new AtomicLong();
     private final Map<Long, CmsColumn> columns = new LinkedHashMap<>();
     private final Map<Long, CmsContent> contents = new LinkedHashMap<>();
     private final Map<Long, List<ContentAttachment>> attachments = new LinkedHashMap<>();
+    private final Map<Long, PageSection> pageSections = new LinkedHashMap<>();
+    private final Map<Long, CmsBanner> banners = new LinkedHashMap<>();
 
     public LocalCmsStore() {
         LocalDateTime now = LocalDateTime.now();
@@ -68,6 +90,32 @@ public class LocalCmsStore {
             ARTICLE_LIST, ARTICLE_DETAIL, articleConfig(), 30, now));
         add(column(203, RECRUIT_SITE, "政策公告", "recruit-policy", LIST, "/recruit/policy", ARTICLE_LIST,
             ARTICLE_DETAIL, articleConfig(), 40, now));
+        addSection(section(1, MAIN_SITE, HOME, "HERO", "首页轮播", HERO_BANNER, null, null,
+            "FULL_WIDTH", Map.of("bannerPosition", "HOME"), 10, now));
+        addSection(section(2, MAIN_SITE, HOME, "SCHOOL_NEWS", "学校新闻", CONTENT_FEED, 101L, 6,
+            "IMAGE_TEXT", Map.of(), 20, now));
+        addSection(section(3, MAIN_SITE, HOME, "NOTICE", "通知公告", CONTENT_FEED, 102L, 8,
+            "TEXT_LIST", Map.of(), 30, now));
+        addSection(section(4, MAIN_SITE, HOME, "QUICK_LINKS", "快捷入口", QUICK_LINKS, null, null,
+            "ICON_GRID", Map.of(), 40, now));
+        addSection(section(5, MAIN_SITE, HOME, "CAMPUS_GALLERY", "校园风采", IMAGE_GALLERY, null, 8,
+            "GRID", Map.of(), 50, now));
+        addSection(section(6, MAIN_SITE, HOME, "FRIEND_LINKS", "友情链接", FRIEND_LINKS, null, null,
+            "TEXT_LINKS", Map.of(), 60, now));
+        addSection(section(7, RECRUIT_SITE, RECRUIT_HOME, "HERO", "专题主视觉", HERO_BANNER, null, null,
+            "FULL_WIDTH", Map.of("bannerPosition", "RECRUIT_HOME"), 10, now));
+        addSection(section(8, RECRUIT_SITE, RECRUIT_HOME, "ADMISSION_NEWS", "招生动态", CONTENT_FEED,
+            200L, 6, "IMAGE_TEXT", Map.of(), 20, now));
+        addSection(section(9, RECRUIT_SITE, RECRUIT_HOME, "EMPLOYMENT_NEWS", "就业信息", CONTENT_FEED,
+            201L, 6, "TEXT_LIST", Map.of(), 30, now));
+        addSection(section(10, RECRUIT_SITE, RECRUIT_HOME, "SCHOOL_ENTERPRISE", "校企合作", CONTENT_FEED,
+            202L, 6, "IMAGE_TEXT", Map.of(), 40, now));
+        addSection(section(11, RECRUIT_SITE, RECRUIT_HOME, "RECRUIT_POLICY", "政策公告", CONTENT_FEED,
+            203L, 8, "TEXT_LIST", Map.of(), 50, now));
+        addSection(section(12, RECRUIT_SITE, RECRUIT_HOME, "QUICK_LINKS", "专题快捷入口", QUICK_LINKS,
+            null, null, "ICON_GRID", Map.of(), 60, now));
+        addSection(section(13, RECRUIT_SITE, RECRUIT_HOME, "CONTACT", "联系我们", CONTACT_INFO,
+            null, null, "DEFAULT", Map.of(), 70, now));
     }
 
     public synchronized List<CmsColumn> findColumns(SiteType siteType) {
@@ -92,6 +140,166 @@ public class LocalCmsStore {
 
     public synchronized long countContents(long columnId) {
         return contents.values().stream().filter(content -> content.columnId() == columnId).count();
+    }
+
+    public synchronized long countPageSections(long columnId) {
+        return pageSections.values().stream()
+            .filter(section -> java.util.Objects.equals(section.dataSourceColumnId(), columnId))
+            .count();
+    }
+
+    public synchronized List<PageSection> findPageSections(SiteType siteType, PageCode pageCode) {
+        return pageSections.values().stream()
+            .filter(section -> section.siteType() == siteType && section.pageCode() == pageCode)
+            .sorted(Comparator.comparingInt(PageSection::sortNo).thenComparingLong(PageSection::id))
+            .toList();
+    }
+
+    public synchronized void replacePageSections(List<SavePageSection> commands) {
+        LocalDateTime now = LocalDateTime.now();
+        for (SavePageSection command : commands) {
+            PageSection existing = pageSections.values().stream()
+                .filter(section -> section.siteType() == command.siteType()
+                    && section.pageCode() == command.pageCode()
+                    && section.sectionCode().equals(command.sectionCode()))
+                .findFirst()
+                .orElse(null);
+            long id = existing == null ? pageSectionIdSequence.incrementAndGet() : existing.id();
+            pageSections.put(id, new PageSection(
+                id,
+                command.siteType(),
+                command.pageCode(),
+                command.sectionCode(),
+                command.sectionName(),
+                command.sectionType(),
+                command.dataSourceColumnId(),
+                command.displayCount(),
+                command.displayStyle(),
+                command.config(),
+                command.sortNo(),
+                command.enabled(),
+                existing == null ? now : existing.createdAt(),
+                now
+            ));
+        }
+    }
+
+    public synchronized PageResult<CmsBanner> findBanners(
+        String keyword,
+        SiteType siteType,
+        BannerPosition position,
+        Boolean enabled,
+        long pageNo,
+        long pageSize
+    ) {
+        String normalizedKeyword = keyword == null ? null : keyword.toLowerCase(Locale.ROOT);
+        List<CmsBanner> matched = banners.values().stream()
+            .filter(banner -> siteType == null || banner.siteType() == siteType)
+            .filter(banner -> position == null || banner.position() == position)
+            .filter(banner -> enabled == null || banner.enabled() == enabled)
+            .filter(banner -> normalizedKeyword == null
+                || contains(banner.title(), normalizedKeyword)
+                || contains(banner.subtitle(), normalizedKeyword))
+            .sorted(Comparator.comparingInt(CmsBanner::sortNo).thenComparingLong(CmsBanner::id))
+            .toList();
+        long offset = (pageNo - 1) * pageSize;
+        if (offset >= matched.size()) {
+            return PageResult.empty(pageNo, pageSize);
+        }
+        int fromIndex = Math.toIntExact(offset);
+        int toIndex = Math.min(matched.size(), Math.toIntExact(offset + pageSize));
+        return PageResult.of(matched.subList(fromIndex, toIndex), matched.size(), pageNo, pageSize);
+    }
+
+    public synchronized Optional<CmsBanner> findBanner(long id) {
+        return Optional.ofNullable(banners.get(id));
+    }
+
+    public synchronized long createBanner(CreateCmsBanner command) {
+        long id = bannerIdSequence.incrementAndGet();
+        LocalDateTime now = LocalDateTime.now();
+        banners.put(id, new CmsBanner(
+            id,
+            command.siteType(),
+            command.position(),
+            command.title(),
+            command.subtitle(),
+            command.imageUrl(),
+            command.mobileImageUrl(),
+            command.linkType(),
+            command.linkRefId(),
+            command.linkUrl(),
+            command.linkTarget(),
+            command.sortNo(),
+            command.enabled(),
+            command.startTime(),
+            command.endTime(),
+            command.remark(),
+            now,
+            now
+        ));
+        return id;
+    }
+
+    public synchronized boolean updateBanner(UpdateCmsBanner command) {
+        CmsBanner existing = banners.get(command.id());
+        if (existing == null) {
+            return false;
+        }
+        banners.put(command.id(), new CmsBanner(
+            existing.id(),
+            command.siteType(),
+            command.position(),
+            command.title(),
+            command.subtitle(),
+            command.imageUrl(),
+            command.mobileImageUrl(),
+            command.linkType(),
+            command.linkRefId(),
+            command.linkUrl(),
+            command.linkTarget(),
+            command.sortNo(),
+            command.enabled(),
+            command.startTime(),
+            command.endTime(),
+            command.remark(),
+            existing.createdAt(),
+            LocalDateTime.now()
+        ));
+        return true;
+    }
+
+    public synchronized boolean updateBannerStatus(long id, boolean enabled) {
+        CmsBanner existing = banners.get(id);
+        if (existing == null) {
+            return false;
+        }
+        banners.put(id, copyBanner(existing, existing.sortNo(), enabled));
+        return true;
+    }
+
+    public synchronized void updateBannerSort(List<BannerSortItem> items) {
+        for (BannerSortItem item : items) {
+            CmsBanner existing = banners.get(item.id());
+            if (existing != null) {
+                banners.put(item.id(), copyBanner(existing, item.sortNo(), existing.enabled()));
+            }
+        }
+    }
+
+    public synchronized boolean deleteBanner(long id) {
+        return banners.remove(id) != null;
+    }
+
+    public synchronized long countBannerReferences(
+        BannerLinkType linkType,
+        long linkRefId,
+        boolean enabledOnly
+    ) {
+        return banners.values().stream()
+            .filter(banner -> banner.linkType() == linkType && java.util.Objects.equals(banner.linkRefId(), linkRefId))
+            .filter(banner -> !enabledOnly || banner.enabled())
+            .count();
     }
 
     public synchronized PageResult<CmsContent> findContents(
@@ -444,6 +652,29 @@ public class LocalCmsStore {
         );
     }
 
+    private CmsBanner copyBanner(CmsBanner banner, int sortNo, boolean enabled) {
+        return new CmsBanner(
+            banner.id(),
+            banner.siteType(),
+            banner.position(),
+            banner.title(),
+            banner.subtitle(),
+            banner.imageUrl(),
+            banner.mobileImageUrl(),
+            banner.linkType(),
+            banner.linkRefId(),
+            banner.linkUrl(),
+            banner.linkTarget(),
+            sortNo,
+            enabled,
+            banner.startTime(),
+            banner.endTime(),
+            banner.remark(),
+            banner.createdAt(),
+            LocalDateTime.now()
+        );
+    }
+
     private void replaceAttachments(long contentId, List<ContentAttachmentRequest> requests, LocalDateTime now) {
         List<ContentAttachment> values = requests.stream()
             .map(request -> new ContentAttachment(
@@ -464,6 +695,42 @@ public class LocalCmsStore {
 
     private void add(CmsColumn column) {
         columns.put(column.id(), column);
+    }
+
+    private void addSection(PageSection section) {
+        pageSections.put(section.id(), section);
+    }
+
+    private PageSection section(
+        long id,
+        SiteType siteType,
+        PageCode pageCode,
+        String code,
+        String name,
+        PageSectionType type,
+        Long columnId,
+        Integer displayCount,
+        String style,
+        Map<String, Object> config,
+        int sortNo,
+        LocalDateTime now
+    ) {
+        return new PageSection(
+            id,
+            siteType,
+            pageCode,
+            code,
+            name,
+            type,
+            columnId,
+            displayCount,
+            style,
+            config,
+            sortNo,
+            true,
+            now,
+            now
+        );
     }
 
     private CmsColumn column(

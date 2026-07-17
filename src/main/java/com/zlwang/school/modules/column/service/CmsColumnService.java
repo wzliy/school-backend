@@ -2,6 +2,8 @@ package com.zlwang.school.modules.column.service;
 
 import com.zlwang.school.common.exception.BusinessException;
 import com.zlwang.school.common.exception.ErrorCode;
+import com.zlwang.school.modules.banner.model.BannerLinkType;
+import com.zlwang.school.modules.banner.repository.CmsBannerRepository;
 import com.zlwang.school.modules.column.dto.ColumnSortItem;
 import com.zlwang.school.modules.column.dto.CreateColumnRequest;
 import com.zlwang.school.modules.column.dto.SortColumnsRequest;
@@ -35,15 +37,18 @@ import org.springframework.util.StringUtils;
 public class CmsColumnService {
 
     private final CmsColumnRepository cmsColumnRepository;
+    private final CmsBannerRepository cmsBannerRepository;
     private final PageTemplateRegistry pageTemplateRegistry;
     private final ColumnTemplateConfigValidator templateConfigValidator;
 
     public CmsColumnService(
         CmsColumnRepository cmsColumnRepository,
+        CmsBannerRepository cmsBannerRepository,
         PageTemplateRegistry pageTemplateRegistry,
         ColumnTemplateConfigValidator templateConfigValidator
     ) {
         this.cmsColumnRepository = cmsColumnRepository;
+        this.cmsBannerRepository = cmsBannerRepository;
         this.pageTemplateRegistry = pageTemplateRegistry;
         this.templateConfigValidator = templateConfigValidator;
     }
@@ -168,6 +173,13 @@ public class CmsColumnService {
                 || !java.util.Objects.equals(existing.detailTemplateKey(), templates.detailTemplateKey()))) {
             throw new BusinessException(ErrorCode.CONFLICT, "栏目已有内容，不能直接切换页面模板");
         }
+        if (existing.enabled() && !request.enabled() && cmsColumnRepository.countPageSections(id) > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "栏目被页面区块引用，不能停用");
+        }
+        if (existing.enabled() && !request.enabled()
+            && cmsBannerRepository.countReferences(BannerLinkType.COLUMN, id, true) > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "栏目被启用 Banner 引用，不能停用");
+        }
         Map<String, Object> config = templates.pageTemplateKey() == null
             ? Map.of()
             : templateConfigValidator.validateAndApplyDefaults(
@@ -204,6 +216,15 @@ public class CmsColumnService {
     }
 
     public void updateStatus(long id, boolean enabled, long operatorId) {
+        if (!enabled) {
+            requiredColumn(id);
+            if (cmsColumnRepository.countPageSections(id) > 0) {
+                throw new BusinessException(ErrorCode.CONFLICT, "栏目被页面区块引用，不能停用");
+            }
+            if (cmsBannerRepository.countReferences(BannerLinkType.COLUMN, id, true) > 0) {
+                throw new BusinessException(ErrorCode.CONFLICT, "栏目被启用 Banner 引用，不能停用");
+            }
+        }
         if (!cmsColumnRepository.updateStatus(id, enabled, operatorId)) {
             throw notFound(id);
         }
@@ -228,6 +249,12 @@ public class CmsColumnService {
         }
         if (cmsColumnRepository.countContents(id) > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "栏目包含内容，不能删除");
+        }
+        if (cmsColumnRepository.countPageSections(id) > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "栏目被页面区块引用，不能删除");
+        }
+        if (cmsBannerRepository.countReferences(BannerLinkType.COLUMN, id, false) > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "栏目被 Banner 引用，不能删除");
         }
         if (!cmsColumnRepository.delete(id, operatorId)) {
             throw notFound(id);

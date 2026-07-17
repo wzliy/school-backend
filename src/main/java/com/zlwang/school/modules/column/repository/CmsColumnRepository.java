@@ -18,6 +18,8 @@ public interface CmsColumnRepository {
 
     long countContents(long id);
 
+    long countPageSections(long id);
+
     long create(CreateCmsColumn command);
 
     boolean update(UpdateCmsColumn command);

@@ -48,6 +48,11 @@ public class LocalCmsColumnRepository implements CmsColumnRepository {
     }
 
     @Override
+    public long countPageSections(long id) {
+        return localCmsStore.countPageSections(id);
+    }
+
+    @Override
     public long create(CreateCmsColumn command) {
         return localCmsStore.createColumn(command);
     }

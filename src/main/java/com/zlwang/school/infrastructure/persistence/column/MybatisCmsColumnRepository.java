@@ -56,6 +56,11 @@ public class MybatisCmsColumnRepository implements CmsColumnRepository {
     }
 
     @Override
+    public long countPageSections(long id) {
+        return cmsColumnMapper.countPageSections(id);
+    }
+
+    @Override
     public long create(CreateCmsColumn command) {
         cmsColumnMapper.insert(
             command.parentId(),

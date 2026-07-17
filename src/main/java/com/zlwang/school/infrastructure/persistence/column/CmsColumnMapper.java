@@ -63,6 +63,14 @@ public interface CmsColumnMapper {
     @Select("SELECT COUNT(*) FROM cms_content WHERE column_id = #{id} AND deleted = 0")
     long countContents(@Param("id") long id);
 
+    @Select("""
+        SELECT COUNT(*)
+        FROM cms_page_section
+        WHERE data_source_column_id = #{id}
+          AND deleted = 0
+        """)
+    long countPageSections(@Param("id") long id);
+
     @Insert("""
         INSERT INTO cms_column (
           parent_id, site_type, column_name, column_code, column_type,

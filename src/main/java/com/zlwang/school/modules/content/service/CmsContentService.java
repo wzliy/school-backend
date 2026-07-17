@@ -3,6 +3,8 @@ package com.zlwang.school.modules.content.service;
 import com.zlwang.school.common.api.PageResult;
 import com.zlwang.school.common.exception.BusinessException;
 import com.zlwang.school.common.exception.ErrorCode;
+import com.zlwang.school.modules.banner.model.BannerLinkType;
+import com.zlwang.school.modules.banner.repository.CmsBannerRepository;
 import com.zlwang.school.modules.column.model.CmsColumn;
 import com.zlwang.school.modules.column.repository.CmsColumnRepository;
 import com.zlwang.school.modules.content.dto.ContentAttachmentRequest;
@@ -34,17 +36,20 @@ public class CmsContentService {
 
     private final CmsContentRepository cmsContentRepository;
     private final CmsColumnRepository cmsColumnRepository;
+    private final CmsBannerRepository cmsBannerRepository;
     private final ContentTemplateValidator contentTemplateValidator;
     private final RichTextSanitizer richTextSanitizer;
 
     public CmsContentService(
         CmsContentRepository cmsContentRepository,
         CmsColumnRepository cmsColumnRepository,
+        CmsBannerRepository cmsBannerRepository,
         ContentTemplateValidator contentTemplateValidator,
         RichTextSanitizer richTextSanitizer
     ) {
         this.cmsContentRepository = cmsContentRepository;
         this.cmsColumnRepository = cmsColumnRepository;
+        this.cmsBannerRepository = cmsBannerRepository;
         this.contentTemplateValidator = contentTemplateValidator;
         this.richTextSanitizer = richTextSanitizer;
     }
@@ -105,6 +110,10 @@ public class CmsContentService {
     public void update(long id, UpdateContentRequest request, long operatorId) {
         CmsContent existing = requiredContent(id);
         CmsColumn column = requiredContentColumn(request.columnId());
+        if (existing.siteType() != column.siteType()
+            && cmsBannerRepository.countReferences(BannerLinkType.CONTENT, id, false) > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "内容被 Banner 引用，不能跨站点移动");
+        }
         validateWriteLimits(request.sortNo(), request.attachments());
         Map<String, Object> extensionData = contentTemplateValidator.validateExtensionData(
             column,
@@ -182,6 +191,9 @@ public class CmsContentService {
 
     public void offline(long id, long operatorId) {
         requiredContent(id);
+        if (cmsBannerRepository.countReferences(BannerLinkType.CONTENT, id, true) > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "内容被启用 Banner 引用，不能下线");
+        }
         if (!cmsContentRepository.offline(id, operatorId)) {
             throw notFound(id);
         }
@@ -203,6 +215,9 @@ public class CmsContentService {
 
     public void delete(long id, long operatorId) {
         requiredContent(id);
+        if (cmsBannerRepository.countReferences(BannerLinkType.CONTENT, id, false) > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "内容被 Banner 引用，不能删除");
+        }
         if (!cmsContentRepository.delete(id, operatorId)) {
             throw notFound(id);
         }
