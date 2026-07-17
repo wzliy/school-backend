@@ -3,6 +3,8 @@ package com.zlwang.school.infrastructure.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.zlwang.school.infrastructure.persistence.auth.AuthUserMapper;
+import com.zlwang.school.infrastructure.persistence.column.CmsColumnMapper;
+import com.zlwang.school.infrastructure.persistence.content.CmsContentMapper;
 import com.zlwang.school.infrastructure.persistence.permission.SystemPermissionMapper;
 import com.zlwang.school.infrastructure.persistence.role.SystemRoleMapper;
 import com.zlwang.school.infrastructure.persistence.user.SystemUserMapper;
@@ -17,6 +19,8 @@ class MybatisMapperConfigurationTests {
         configuration.setMapUnderscoreToCamelCase(true);
 
         configuration.addMapper(AuthUserMapper.class);
+        configuration.addMapper(CmsColumnMapper.class);
+        configuration.addMapper(CmsContentMapper.class);
         configuration.addMapper(SystemPermissionMapper.class);
         configuration.addMapper(SystemRoleMapper.class);
         configuration.addMapper(SystemUserMapper.class);
@@ -32,6 +36,12 @@ class MybatisMapperConfigurationTests {
         )).isTrue();
         assertThat(configuration.hasStatement(
             SystemPermissionMapper.class.getName() + ".findAll"
+        )).isTrue();
+        assertThat(configuration.hasStatement(
+            CmsColumnMapper.class.getName() + ".findAll"
+        )).isTrue();
+        assertThat(configuration.hasStatement(
+            CmsContentMapper.class.getName() + ".findContents"
         )).isTrue();
     }
 }

@@ -251,6 +251,17 @@ OFFLINE    已下线
 DELETED    已删除
 ```
 
+内容保存与发布遵循以下规则：
+
+1. `POST /api/admin/contents` 只创建 `DRAFT` 草稿，普通编辑接口不直接改变发布状态。
+2. 内容生效模板优先使用栏目 `detail_template_key`，未配置详情模板时使用 `template_key`；无内容字段的首页、专题页、系统页和外链栏目禁止维护普通内容。
+3. 草稿允许暂缺正文、发布时间或模板扩展必填字段；发布时必须一次性校验栏目启用状态、公共必填字段和扩展必填字段。
+4. `PUT /api/admin/contents/{id}/publish` 支持传入 `publishAt`，未传时使用服务器当前时间；定时内容保持 `PUBLISHED` 状态，由公开 API 按 `publish_at` 过滤未到发布时间的数据。
+5. `extension_data` 仅接受固定模板注册表声明的字段，服务端校验字段名、类型、长度、数值范围和选项，并补齐模板默认值；其中禁止保存 HTML、脚本和组件代码。
+6. `content_html` 使用基于 HTML 解析器的安全白名单清洗，移除脚本、事件属性和危险协议，同时保留受控富文本标签及 `/uploads/...` 相对资源地址。
+7. 内容新增和编辑时，附件列表与内容在同一事务中保存；编辑采用整组替换语义，单篇内容最多维护 50 个附件。
+8. 内容所属 `site_type` 始终从栏目派生，客户端不能单独指定站点，避免主站与招生就业专题站内容串站。
+
 ### 5.4 Banner 管理
 
 Banner 支持主站首页、招生就业专题站和栏目页展示位置。Banner 可配置图片、跳转链接、排序、启用状态和展示时间范围。
@@ -446,6 +457,8 @@ PUT    /api/admin/contents/{id}/offline
 PUT    /api/admin/contents/{id}/top
 PUT    /api/admin/contents/{id}/recommend
 ```
+
+内容列表支持 `keyword`、`columnId`、`siteType`、`status`、`pageNo` 和 `pageSize` 查询参数。读取接口要求 `cms:content` 权限，新增、编辑、删除及状态动作要求 `cms:content:manage` 权限。`top` 请求体使用 `topFlag`，`recommend` 请求体使用 `recommendFlag`，发布请求体中的 `publishAt` 可省略。
 
 页面区块管理：
 
