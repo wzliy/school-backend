@@ -35,6 +35,10 @@ import com.zlwang.school.modules.content.model.ContentAttachment;
 import com.zlwang.school.modules.content.model.ContentStatus;
 import com.zlwang.school.modules.content.repository.CreateCmsContent;
 import com.zlwang.school.modules.content.repository.UpdateCmsContent;
+import com.zlwang.school.modules.link.dto.FriendLinkSortItem;
+import com.zlwang.school.modules.link.model.CmsFriendLink;
+import com.zlwang.school.modules.link.repository.CreateCmsFriendLink;
+import com.zlwang.school.modules.link.repository.UpdateCmsFriendLink;
 import com.zlwang.school.modules.media.model.CmsMedia;
 import com.zlwang.school.modules.media.model.MediaFileType;
 import com.zlwang.school.modules.media.model.StorageType;
@@ -43,6 +47,10 @@ import com.zlwang.school.modules.page.model.PageCode;
 import com.zlwang.school.modules.page.model.PageSection;
 import com.zlwang.school.modules.page.model.PageSectionType;
 import com.zlwang.school.modules.page.repository.SavePageSection;
+import com.zlwang.school.modules.site.model.CmsSiteConfig;
+import com.zlwang.school.modules.site.model.SiteConfigType;
+import com.zlwang.school.modules.site.model.SiteScope;
+import com.zlwang.school.modules.site.repository.UpdateSiteConfigValue;
 import com.zlwang.school.modules.template.model.SiteType;
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -65,12 +73,15 @@ public class LocalCmsStore {
     private final AtomicLong pageSectionIdSequence = new AtomicLong(13L);
     private final AtomicLong bannerIdSequence = new AtomicLong();
     private final AtomicLong mediaIdSequence = new AtomicLong();
+    private final AtomicLong friendLinkIdSequence = new AtomicLong(1L);
     private final Map<Long, CmsColumn> columns = new LinkedHashMap<>();
     private final Map<Long, CmsContent> contents = new LinkedHashMap<>();
     private final Map<Long, List<ContentAttachment>> attachments = new LinkedHashMap<>();
     private final Map<Long, PageSection> pageSections = new LinkedHashMap<>();
     private final Map<Long, CmsBanner> banners = new LinkedHashMap<>();
     private final Map<Long, CmsMedia> media = new LinkedHashMap<>();
+    private final Map<String, CmsSiteConfig> siteConfigs = new LinkedHashMap<>();
+    private final Map<Long, CmsFriendLink> friendLinks = new LinkedHashMap<>();
 
     public LocalCmsStore() {
         LocalDateTime now = LocalDateTime.now();
@@ -122,6 +133,46 @@ public class LocalCmsStore {
             null, null, "ICON_GRID", Map.of(), 60, now));
         addSection(section(13, RECRUIT_SITE, RECRUIT_HOME, "CONTACT", "联系我们", CONTACT_INFO,
             null, null, "DEFAULT", Map.of(), 70, now));
+        addSiteConfig(siteConfig(1, SiteScope.GLOBAL, "siteName", "高校官网",
+            SiteConfigType.STRING, "网站名称", now));
+        addSiteConfig(siteConfig(2, SiteScope.GLOBAL, "siteLogo", "",
+            SiteConfigType.IMAGE, "网站 Logo", now));
+        addSiteConfig(siteConfig(3, SiteScope.GLOBAL, "icpNo", "",
+            SiteConfigType.STRING, "ICP备案号", now));
+        addSiteConfig(siteConfig(4, SiteScope.GLOBAL, "contactPhone", "",
+            SiteConfigType.STRING, "联系电话", now));
+        addSiteConfig(siteConfig(5, SiteScope.GLOBAL, "contactAddress", "",
+            SiteConfigType.STRING, "联系地址", now));
+        addSiteConfig(siteConfig(6, SiteScope.GLOBAL, "copyright",
+            "Copyright © 高校官网 All Rights Reserved.", SiteConfigType.STRING, "版权信息", now));
+        addSiteConfig(siteConfig(7, SiteScope.MAIN_SITE, "defaultSeoTitle", "高校官网",
+            SiteConfigType.STRING, "主站默认 SEO 标题", now));
+        addSiteConfig(siteConfig(8, SiteScope.MAIN_SITE, "defaultSeoKeywords", "高校官网,高校,教育",
+            SiteConfigType.STRING, "主站默认 SEO 关键词", now));
+        addSiteConfig(siteConfig(9, SiteScope.MAIN_SITE, "defaultSeoDescription", "高校官网门户网站",
+            SiteConfigType.STRING, "主站默认 SEO 描述", now));
+        addSiteConfig(siteConfig(10, SiteScope.RECRUIT_SITE, "defaultSeoTitle", "招生就业专题站",
+            SiteConfigType.STRING, "招生就业站默认 SEO 标题", now));
+        addSiteConfig(siteConfig(11, SiteScope.RECRUIT_SITE, "defaultSeoKeywords",
+            "招生,就业,高校招生,高校就业", SiteConfigType.STRING, "招生就业站默认 SEO 关键词", now));
+        addSiteConfig(siteConfig(12, SiteScope.RECRUIT_SITE, "defaultSeoDescription",
+            "高校招生就业专题站", SiteConfigType.STRING, "招生就业站默认 SEO 描述", now));
+        addSiteConfig(siteConfig(13, SiteScope.MAIN_SITE, "homeNewsLimit", "8",
+            SiteConfigType.NUMBER, "首页新闻展示数量", now));
+        addSiteConfig(siteConfig(14, SiteScope.MAIN_SITE, "homeNoticeLimit", "6",
+            SiteConfigType.NUMBER, "首页公告展示数量", now));
+        friendLinks.put(1L, new CmsFriendLink(
+            1L,
+            SiteScope.GLOBAL,
+            "教育部",
+            "https://www.moe.gov.cn/",
+            null,
+            10,
+            true,
+            "默认友情链接示例",
+            now,
+            now
+        ));
     }
 
     public synchronized List<CmsColumn> findColumns(SiteType siteType) {
@@ -371,6 +422,128 @@ public class LocalCmsStore {
             .flatMap(List::stream)
             .filter(attachment -> java.util.Objects.equals(attachment.mediaId(), id))
             .count();
+    }
+
+    public synchronized List<CmsSiteConfig> findSiteConfigs(SiteScope siteType) {
+        return siteConfigs.values().stream()
+            .filter(config -> siteType == null || config.siteType() == siteType)
+            .sorted(Comparator.comparing(CmsSiteConfig::siteType)
+                .thenComparingLong(CmsSiteConfig::id))
+            .toList();
+    }
+
+    public synchronized boolean updateSiteConfigs(
+        SiteScope siteType,
+        List<UpdateSiteConfigValue> values
+    ) {
+        if (values.stream().anyMatch(value -> !siteConfigs.containsKey(
+            siteConfigKey(siteType, value.configKey())
+        ))) {
+            return false;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        for (UpdateSiteConfigValue value : values) {
+            String key = siteConfigKey(siteType, value.configKey());
+            CmsSiteConfig existing = siteConfigs.get(key);
+            siteConfigs.put(key, new CmsSiteConfig(
+                existing.id(),
+                existing.siteType(),
+                existing.configKey(),
+                value.configValue(),
+                existing.configType(),
+                existing.description(),
+                existing.createdAt(),
+                now
+            ));
+        }
+        return true;
+    }
+
+    public synchronized PageResult<CmsFriendLink> findFriendLinks(
+        String keyword,
+        SiteScope siteType,
+        Boolean enabled,
+        long pageNo,
+        long pageSize
+    ) {
+        String normalizedKeyword = keyword == null ? null : keyword.toLowerCase(Locale.ROOT);
+        List<CmsFriendLink> matched = friendLinks.values().stream()
+            .filter(link -> siteType == null || link.siteType() == siteType)
+            .filter(link -> enabled == null || link.enabled() == enabled)
+            .filter(link -> normalizedKeyword == null || contains(link.name(), normalizedKeyword))
+            .sorted(Comparator.comparingInt(CmsFriendLink::sortNo).thenComparingLong(CmsFriendLink::id))
+            .toList();
+        long offset = (pageNo - 1) * pageSize;
+        if (offset >= matched.size()) {
+            return PageResult.empty(pageNo, pageSize);
+        }
+        int fromIndex = Math.toIntExact(offset);
+        int toIndex = Math.min(matched.size(), Math.toIntExact(offset + pageSize));
+        return PageResult.of(matched.subList(fromIndex, toIndex), matched.size(), pageNo, pageSize);
+    }
+
+    public synchronized Optional<CmsFriendLink> findFriendLink(long id) {
+        return Optional.ofNullable(friendLinks.get(id));
+    }
+
+    public synchronized long createFriendLink(CreateCmsFriendLink command) {
+        long id = friendLinkIdSequence.incrementAndGet();
+        LocalDateTime now = LocalDateTime.now();
+        friendLinks.put(id, new CmsFriendLink(
+            id,
+            command.siteType(),
+            command.name(),
+            command.linkUrl(),
+            command.logoUrl(),
+            command.sortNo(),
+            command.enabled(),
+            command.remark(),
+            now,
+            now
+        ));
+        return id;
+    }
+
+    public synchronized boolean updateFriendLink(UpdateCmsFriendLink command) {
+        CmsFriendLink existing = friendLinks.get(command.id());
+        if (existing == null) {
+            return false;
+        }
+        friendLinks.put(command.id(), new CmsFriendLink(
+            existing.id(),
+            command.siteType(),
+            command.name(),
+            command.linkUrl(),
+            command.logoUrl(),
+            command.sortNo(),
+            command.enabled(),
+            command.remark(),
+            existing.createdAt(),
+            LocalDateTime.now()
+        ));
+        return true;
+    }
+
+    public synchronized boolean updateFriendLinkStatus(long id, boolean enabled) {
+        CmsFriendLink existing = friendLinks.get(id);
+        if (existing == null) {
+            return false;
+        }
+        friendLinks.put(id, copyFriendLink(existing, existing.sortNo(), enabled));
+        return true;
+    }
+
+    public synchronized void updateFriendLinkSort(List<FriendLinkSortItem> items) {
+        for (FriendLinkSortItem item : items) {
+            CmsFriendLink existing = friendLinks.get(item.id());
+            if (existing != null) {
+                friendLinks.put(item.id(), copyFriendLink(existing, item.sortNo(), existing.enabled()));
+            }
+        }
+    }
+
+    public synchronized boolean deleteFriendLink(long id) {
+        return friendLinks.remove(id) != null;
     }
 
     public synchronized PageResult<CmsContent> findContents(
@@ -746,6 +919,21 @@ public class LocalCmsStore {
         );
     }
 
+    private CmsFriendLink copyFriendLink(CmsFriendLink link, int sortNo, boolean enabled) {
+        return new CmsFriendLink(
+            link.id(),
+            link.siteType(),
+            link.name(),
+            link.linkUrl(),
+            link.logoUrl(),
+            sortNo,
+            enabled,
+            link.remark(),
+            link.createdAt(),
+            LocalDateTime.now()
+        );
+    }
+
     private void replaceAttachments(long contentId, List<ContentAttachmentRequest> requests, LocalDateTime now) {
         List<ContentAttachment> values = requests.stream()
             .map(request -> new ContentAttachment(
@@ -770,6 +958,35 @@ public class LocalCmsStore {
 
     private void addSection(PageSection section) {
         pageSections.put(section.id(), section);
+    }
+
+    private void addSiteConfig(CmsSiteConfig config) {
+        siteConfigs.put(siteConfigKey(config.siteType(), config.configKey()), config);
+    }
+
+    private String siteConfigKey(SiteScope siteType, String configKey) {
+        return siteType.name() + ":" + configKey;
+    }
+
+    private CmsSiteConfig siteConfig(
+        long id,
+        SiteScope siteType,
+        String configKey,
+        String configValue,
+        SiteConfigType configType,
+        String description,
+        LocalDateTime now
+    ) {
+        return new CmsSiteConfig(
+            id,
+            siteType,
+            configKey,
+            configValue,
+            configType,
+            description,
+            now,
+            now
+        );
     }
 
     private PageSection section(

@@ -273,9 +273,19 @@ OTHER     zip
 
 ### 5.6 站点配置与友情链接
 
-站点配置用于维护网站名称、Logo、备案号、联系电话、联系地址、版权信息、首页展示数量和默认 SEO 信息。
+站点配置用于维护网站名称、Logo、备案号、联系电话、联系地址、版权信息、首页展示数量和默认 SEO 信息。配置作用域独立定义为 `GLOBAL`、`MAIN_SITE` 和 `RECRUIT_SITE`；`GLOBAL` 表示两个站点共用，不能加入只包含主站和专题站的页面模板 `SiteType`。
 
-友情链接支持名称、链接地址、Logo、排序和启用禁用。
+本期配置键由初始化 SQL 固定，Admin API 只允许按作用域批量修改配置值，不允许动态新增、删除或修改配置键、类型和说明。批量更新在同一事务中完成，未知键、重复键或任意类型校验失败时整批不保存。
+
+| 作用域 | 固定配置 |
+| --- | --- |
+| `GLOBAL` | `siteName`、`siteLogo`、`icpNo`、`contactPhone`、`contactAddress`、`copyright` |
+| `MAIN_SITE` | `defaultSeoTitle`、`defaultSeoKeywords`、`defaultSeoDescription`、`homeNewsLimit`、`homeNoticeLimit` |
+| `RECRUIT_SITE` | `defaultSeoTitle`、`defaultSeoKeywords`、`defaultSeoDescription` |
+
+配置类型支持 `STRING`、`NUMBER`、`BOOLEAN`、`JSON` 和 `IMAGE`。首页展示数量必须是 1-100 的整数；图片值允许空值、无路径跳转的站内绝对路径或有效 HTTP/HTTPS 地址。JSON、布尔值和数字即使前端已校验，保存时仍由后端按 `config_type` 再次验证。
+
+友情链接支持 `GLOBAL`、`MAIN_SITE` 和 `RECRUIT_SITE` 三类作用域，以及名称、链接地址、Logo、排序、启用禁用和备注。跳转地址只允许有效 HTTP/HTTPS URL；Logo 可使用安全的站内绝对路径或有效 HTTP/HTTPS URL。列表按 `sortNo`、`id` 升序返回，删除采用逻辑删除并同时停用。
 
 ### 5.7 搜索
 
@@ -475,6 +485,29 @@ DELETE /api/admin/media/{id}
 ```
 
 媒体列表支持 `keyword`、`fileType`、`storageType`、`uploaderId`、`pageNo` 和 `pageSize` 查询参数，并按创建时间、ID 倒序返回。上传使用 `multipart/form-data`，文件字段名为 `file`，可选备注字段名为 `remark`。读取接口要求 `cms:media` 权限，上传和删除要求 `cms:media:manage` 权限；公开文件地址只允许匿名 `GET`，媒体元数据管理接口仍需鉴权。
+
+站点配置管理：
+
+```text
+GET /api/admin/site-config
+PUT /api/admin/site-config/{siteType}
+```
+
+配置列表可使用 `siteType` 筛选；不传时按 `GLOBAL`、`MAIN_SITE`、`RECRUIT_SITE` 返回全部固定配置。更新请求包含 `items` 数组，每项只提交 `configKey` 和 `configValue`。读取要求 `cms:site-config` 权限，更新要求 `cms:site-config:manage` 权限。
+
+友情链接管理：
+
+```text
+GET    /api/admin/friend-links
+GET    /api/admin/friend-links/{id}
+POST   /api/admin/friend-links
+PUT    /api/admin/friend-links/{id}
+PUT    /api/admin/friend-links/{id}/status
+PUT    /api/admin/friend-links/sort
+DELETE /api/admin/friend-links/{id}
+```
+
+友情链接列表支持 `keyword`、`siteType`、`enabled`、`pageNo` 和 `pageSize` 查询参数。读取要求 `cms:friend-link` 权限，新增、编辑、排序、启停和删除要求 `cms:friend-link:manage` 权限。
 
 前台公开 API：
 
