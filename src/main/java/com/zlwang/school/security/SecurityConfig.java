@@ -1,5 +1,6 @@
 package com.zlwang.school.security;
 
+import com.zlwang.school.infrastructure.storage.FileStorageProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,7 +29,8 @@ public class SecurityConfig {
         HttpSecurity http,
         DatabaseJwtAuthenticationConverter jwtAuthenticationConverter,
         RestAuthenticationEntryPoint authenticationEntryPoint,
-        RestAccessDeniedHandler accessDeniedHandler
+        RestAccessDeniedHandler accessDeniedHandler,
+        FileStorageProperties fileStorageProperties
     ) {
         return http
             .csrf(AbstractHttpConfigurer::disable)
@@ -45,7 +47,12 @@ public class SecurityConfig {
                     "/swagger-ui/**",
                     "/swagger-ui.html"
                 ).permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/portal/**", "/api/files/**").permitAll()
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/portal/**",
+                    "/api/files/**",
+                    fileStorageProperties.normalizedPublicUrlPrefix() + "/**"
+                ).permitAll()
                 .requestMatchers("/api/admin/**").authenticated()
                 .anyRequest().denyAll()
             )

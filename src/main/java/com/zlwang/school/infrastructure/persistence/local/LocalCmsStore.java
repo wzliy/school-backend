@@ -35,6 +35,10 @@ import com.zlwang.school.modules.content.model.ContentAttachment;
 import com.zlwang.school.modules.content.model.ContentStatus;
 import com.zlwang.school.modules.content.repository.CreateCmsContent;
 import com.zlwang.school.modules.content.repository.UpdateCmsContent;
+import com.zlwang.school.modules.media.model.CmsMedia;
+import com.zlwang.school.modules.media.model.MediaFileType;
+import com.zlwang.school.modules.media.model.StorageType;
+import com.zlwang.school.modules.media.repository.CreateCmsMedia;
 import com.zlwang.school.modules.page.model.PageCode;
 import com.zlwang.school.modules.page.model.PageSection;
 import com.zlwang.school.modules.page.model.PageSectionType;
@@ -60,11 +64,13 @@ public class LocalCmsStore {
     private final AtomicLong attachmentIdSequence = new AtomicLong();
     private final AtomicLong pageSectionIdSequence = new AtomicLong(13L);
     private final AtomicLong bannerIdSequence = new AtomicLong();
+    private final AtomicLong mediaIdSequence = new AtomicLong();
     private final Map<Long, CmsColumn> columns = new LinkedHashMap<>();
     private final Map<Long, CmsContent> contents = new LinkedHashMap<>();
     private final Map<Long, List<ContentAttachment>> attachments = new LinkedHashMap<>();
     private final Map<Long, PageSection> pageSections = new LinkedHashMap<>();
     private final Map<Long, CmsBanner> banners = new LinkedHashMap<>();
+    private final Map<Long, CmsMedia> media = new LinkedHashMap<>();
 
     public LocalCmsStore() {
         LocalDateTime now = LocalDateTime.now();
@@ -299,6 +305,71 @@ public class LocalCmsStore {
         return banners.values().stream()
             .filter(banner -> banner.linkType() == linkType && java.util.Objects.equals(banner.linkRefId(), linkRefId))
             .filter(banner -> !enabledOnly || banner.enabled())
+            .count();
+    }
+
+    public synchronized PageResult<CmsMedia> findMedia(
+        String keyword,
+        MediaFileType fileType,
+        StorageType storageType,
+        Long uploaderId,
+        long pageNo,
+        long pageSize
+    ) {
+        String normalizedKeyword = keyword == null ? null : keyword.toLowerCase(Locale.ROOT);
+        List<CmsMedia> matched = media.values().stream()
+            .filter(item -> fileType == null || item.fileType() == fileType)
+            .filter(item -> storageType == null || item.storageType() == storageType)
+            .filter(item -> uploaderId == null || java.util.Objects.equals(item.uploaderId(), uploaderId))
+            .filter(item -> normalizedKeyword == null
+                || contains(item.originalName(), normalizedKeyword)
+                || contains(item.storedName(), normalizedKeyword))
+            .sorted(Comparator.comparing(CmsMedia::createdAt).reversed()
+                .thenComparing(CmsMedia::id, Comparator.reverseOrder()))
+            .toList();
+        long offset = (pageNo - 1) * pageSize;
+        if (offset >= matched.size()) {
+            return PageResult.empty(pageNo, pageSize);
+        }
+        int fromIndex = Math.toIntExact(offset);
+        int toIndex = Math.min(matched.size(), Math.toIntExact(offset + pageSize));
+        return PageResult.of(matched.subList(fromIndex, toIndex), matched.size(), pageNo, pageSize);
+    }
+
+    public synchronized Optional<CmsMedia> findMedia(long id) {
+        return Optional.ofNullable(media.get(id));
+    }
+
+    public synchronized long createMedia(CreateCmsMedia command) {
+        long id = mediaIdSequence.incrementAndGet();
+        LocalDateTime now = LocalDateTime.now();
+        media.put(id, new CmsMedia(
+            id,
+            command.storageType(),
+            command.fileType(),
+            command.originalName(),
+            command.storedName(),
+            command.extension(),
+            command.mimeType(),
+            command.fileSize(),
+            command.filePath(),
+            command.accessUrl(),
+            command.uploaderId(),
+            command.remark(),
+            now,
+            now
+        ));
+        return id;
+    }
+
+    public synchronized boolean deleteMedia(long id) {
+        return media.remove(id) != null;
+    }
+
+    public synchronized long countMediaReferences(long id) {
+        return attachments.values().stream()
+            .flatMap(List::stream)
+            .filter(attachment -> java.util.Objects.equals(attachment.mediaId(), id))
             .count();
     }
 

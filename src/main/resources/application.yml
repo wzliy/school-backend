@@ -6,6 +6,10 @@ spring:
     name: school-backend
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+  servlet:
+    multipart:
+      max-file-size: ${FILE_MAX_SIZE:20MB}
+      max-request-size: ${FILE_MAX_REQUEST_SIZE:21MB}
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
@@ -38,7 +42,26 @@ app:
       secret: ${JWT_SECRET}
       access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT2H}
   file:
-    storage-type: local
+    storage-type: ${FILE_STORAGE_TYPE:local}
     local-path: ${FILE_LOCAL_PATH:/data/school/uploads}
     public-url-prefix: ${FILE_PUBLIC_URL_PREFIX:/uploads}
     max-size: ${FILE_MAX_SIZE:20MB}
+    allowed-extensions:
+      - jpg
+      - jpeg
+      - png
+      - gif
+      - webp
+      - pdf
+      - doc
+      - docx
+      - xls
+      - xlsx
+      - ppt
+      - pptx
+      - txt
+      - csv
+      - mp4
+      - webm
+      - mov
+      - zip

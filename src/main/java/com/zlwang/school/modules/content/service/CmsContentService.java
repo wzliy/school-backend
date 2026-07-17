@@ -14,6 +14,7 @@ import com.zlwang.school.modules.content.dto.PublishContentRequest;
 import com.zlwang.school.modules.content.dto.UpdateContentRecommendRequest;
 import com.zlwang.school.modules.content.dto.UpdateContentRequest;
 import com.zlwang.school.modules.content.dto.UpdateContentTopRequest;
+import com.zlwang.school.modules.content.model.AttachmentFileType;
 import com.zlwang.school.modules.content.model.CmsContent;
 import com.zlwang.school.modules.content.model.ContentStatus;
 import com.zlwang.school.modules.content.repository.CmsContentRepository;
@@ -21,6 +22,8 @@ import com.zlwang.school.modules.content.repository.CreateCmsContent;
 import com.zlwang.school.modules.content.repository.UpdateCmsContent;
 import com.zlwang.school.modules.content.vo.ContentDetailResponse;
 import com.zlwang.school.modules.content.vo.ContentSummaryResponse;
+import com.zlwang.school.modules.media.model.CmsMedia;
+import com.zlwang.school.modules.media.repository.CmsMediaRepository;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -37,6 +40,7 @@ public class CmsContentService {
     private final CmsContentRepository cmsContentRepository;
     private final CmsColumnRepository cmsColumnRepository;
     private final CmsBannerRepository cmsBannerRepository;
+    private final CmsMediaRepository cmsMediaRepository;
     private final ContentTemplateValidator contentTemplateValidator;
     private final RichTextSanitizer richTextSanitizer;
 
@@ -44,12 +48,14 @@ public class CmsContentService {
         CmsContentRepository cmsContentRepository,
         CmsColumnRepository cmsColumnRepository,
         CmsBannerRepository cmsBannerRepository,
+        CmsMediaRepository cmsMediaRepository,
         ContentTemplateValidator contentTemplateValidator,
         RichTextSanitizer richTextSanitizer
     ) {
         this.cmsContentRepository = cmsContentRepository;
         this.cmsColumnRepository = cmsColumnRepository;
         this.cmsBannerRepository = cmsBannerRepository;
+        this.cmsMediaRepository = cmsMediaRepository;
         this.contentTemplateValidator = contentTemplateValidator;
         this.richTextSanitizer = richTextSanitizer;
     }
@@ -252,16 +258,35 @@ public class CmsContentService {
 
     private List<ContentAttachmentRequest> normalizeAttachments(List<ContentAttachmentRequest> attachments) {
         return attachments.stream()
-            .map(attachment -> new ContentAttachmentRequest(
-                attachment.mediaId(),
+            .map(this::normalizeAttachment)
+            .sorted(Comparator.comparingInt(ContentAttachmentRequest::sortNo))
+            .toList();
+    }
+
+    private ContentAttachmentRequest normalizeAttachment(ContentAttachmentRequest attachment) {
+        if (attachment.mediaId() == null) {
+            return new ContentAttachmentRequest(
+                null,
                 attachment.fileName().trim(),
                 attachment.fileUrl().trim(),
                 attachment.fileSize(),
                 attachment.fileType(),
                 attachment.sortNo()
-            ))
-            .sorted(Comparator.comparingInt(ContentAttachmentRequest::sortNo))
-            .toList();
+            );
+        }
+        CmsMedia media = cmsMediaRepository.findById(attachment.mediaId())
+            .orElseThrow(() -> new BusinessException(
+                ErrorCode.NOT_FOUND,
+                "媒体文件不存在：" + attachment.mediaId()
+            ));
+        return new ContentAttachmentRequest(
+            media.id(),
+            attachment.fileName().trim(),
+            media.accessUrl(),
+            media.fileSize(),
+            AttachmentFileType.valueOf(media.fileType().name()),
+            attachment.sortNo()
+        );
     }
 
     private String normalize(String value) {

@@ -254,16 +254,22 @@ EXTERNAL  跳转外部地址，只设置 link_url
 
 ### 5.5 媒体库
 
-媒体库负责图片、文档、视频和其他文件的上传、查询、预览和删除。首版实现本地文件存储，抽象存储接口并预留 MinIO 实现。
+媒体库负责图片、文档、视频和压缩包的上传、分页查询、详情、公开访问和删除。首版启用本地文件存储，通过 `StorageService` 隔离业务与存储实现；MinIO 仅保留存储类型和适配接口边界，本期不引入 MinIO 客户端或部署依赖。
 
 文件类型：
 
 ```text
-IMAGE
-DOCUMENT
-VIDEO
-OTHER
+IMAGE     jpg、jpeg、png、gif、webp
+DOCUMENT  pdf、doc、docx、xls、xlsx、ppt、pptx、txt、csv
+VIDEO     mp4、webm、mov
+OTHER     zip
 ```
+
+上传接口同时校验非空文件、文件大小、扩展名白名单和扩展名对应的 MIME 大类。原始文件名只用于展示，服务端使用 UUID 生成存储文件名，并按 `yyyy/MM` 目录保存；数据库中的 `file_path` 始终保存相对路径，不能由客户端指定。
+
+本地文件通过配置的 `public-url-prefix` 提供匿名 `GET` 访问，默认地址形如 `/uploads/2026/07/{uuid}.jpg`。生产环境可由 Nginx 直接映射上传目录，应用内资源映射主要用于 local 环境和单体部署。
+
+内容附件允许填写 `mediaId` 引用媒体库。引用存在时，后端以媒体库中的访问地址、文件大小和文件类型覆盖客户端提交值，防止伪造附件元数据；仍被未删除内容附件引用的媒体文件不能删除。删除操作同步逻辑删除媒体元数据和清理本地物理文件。
 
 ### 5.6 站点配置与友情链接
 
@@ -459,6 +465,17 @@ DELETE /api/admin/banners/{id}
 
 Banner 列表支持 `keyword`、`siteType`、`position`、`enabled`、`pageNo` 和 `pageSize` 查询参数，并按 `sortNo`、`id` 升序返回。读取接口要求 `cms:banner` 权限，新增、编辑、排序、启停和删除要求 `cms:banner:manage` 权限。
 
+媒体库管理：
+
+```text
+GET    /api/admin/media
+GET    /api/admin/media/{id}
+POST   /api/admin/media/upload
+DELETE /api/admin/media/{id}
+```
+
+媒体列表支持 `keyword`、`fileType`、`storageType`、`uploaderId`、`pageNo` 和 `pageSize` 查询参数，并按创建时间、ID 倒序返回。上传使用 `multipart/form-data`，文件字段名为 `file`，可选备注字段名为 `remark`。读取接口要求 `cms:media` 权限，上传和删除要求 `cms:media:manage` 权限；公开文件地址只允许匿名 `GET`，媒体元数据管理接口仍需鉴权。
+
 前台公开 API：
 
 ```text
@@ -524,22 +541,39 @@ StorageService
 配置示例：
 
 ```yaml
-file:
-  storage-type: local
-  local-path: /data/school/uploads
-  public-url-prefix: /uploads
-  max-size: 20MB
-  allowed-extensions:
-    - jpg
-    - jpeg
-    - png
-    - gif
-    - pdf
-    - doc
-    - docx
-    - xls
-    - xlsx
+spring:
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
+app:
+  file:
+    storage-type: local
+    local-path: /data/school/uploads
+    public-url-prefix: /uploads
+    max-size: 20MB
+    allowed-extensions:
+      - jpg
+      - jpeg
+      - png
+      - gif
+      - webp
+      - pdf
+      - doc
+      - docx
+      - xls
+      - xlsx
+      - ppt
+      - pptx
+      - txt
+      - csv
+      - mp4
+      - webm
+      - mov
+      - zip
 ```
+
+`spring.servlet.multipart` 负责在 Web 容器层限制请求大小，`app.file.max-size` 负责业务层校验，生产配置应保持两者一致并为 multipart 请求保留少量协议开销。`public-url-prefix` 必须是非根相对 URL 前缀且不能包含路径跳转；本地存储实现还会校验最终路径必须位于上传根目录内。
 
 ## 11. 部署设计
 

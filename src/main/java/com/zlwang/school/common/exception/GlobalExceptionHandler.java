@@ -14,6 +14,8 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -73,6 +75,19 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ApiResult<Void>> handleBadRequestException(Exception ex) {
         return badRequest(ex.getMessage());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResult<Void>> handleMaxUploadSizeExceededException(
+        MaxUploadSizeExceededException ex
+    ) {
+        return badRequest("上传文件大小超过限制");
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResult<Void>> handleNoResourceFoundException(NoResourceFoundException ex) {
+        return ResponseEntity.status(ErrorCode.NOT_FOUND.httpStatus())
+            .body(ApiResult.failure(ErrorCode.NOT_FOUND));
     }
 
     @ExceptionHandler(Exception.class)
