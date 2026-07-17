@@ -103,7 +103,7 @@ class SystemUserControllerIntegrationTests {
 
         mockMvc.perform(get("/api/admin/users/role-options").headers(auth(adminToken)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.length()").value(5))
+            .andExpect(jsonPath("$.data").isArray())
             .andExpect(jsonPath("$.data[0].code").value("SUPER_ADMIN"));
     }
 

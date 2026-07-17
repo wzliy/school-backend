@@ -26,7 +26,7 @@ class MybatisAuthUserRepositoryTests {
         when(authUserMapper.findByUsername("admin"))
             .thenReturn(new AuthUserRow(1L, "admin", "hash", "管理员", null, 1));
         when(authUserMapper.findRoleCodesByUserId(1L)).thenReturn(List.of("SUPER_ADMIN"));
-        when(authUserMapper.findPermissionsByUserId(1L)).thenReturn(List.of(
+        when(authUserMapper.findAllPermissions()).thenReturn(List.of(
             new AuthPermissionRow(
                 1L,
                 0L,

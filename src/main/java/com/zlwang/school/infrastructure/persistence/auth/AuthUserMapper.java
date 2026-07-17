@@ -55,4 +55,23 @@ public interface AuthUserMapper {
         ORDER BY p.sort_no, p.id
         """)
     List<AuthPermissionRow> findPermissionsByUserId(@Param("userId") long userId);
+
+    @Select("""
+        SELECT
+          id,
+          parent_id,
+          permission_name,
+          permission_code,
+          permission_type,
+          route_path,
+          component_path,
+          icon,
+          sort_no,
+          visible
+        FROM sys_permission
+        WHERE status = 1
+          AND deleted = 0
+        ORDER BY sort_no, id
+        """)
+    List<AuthPermissionRow> findAllPermissions();
 }

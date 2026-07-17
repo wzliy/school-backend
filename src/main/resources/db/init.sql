@@ -1,6 +1,6 @@
 -- 高校官网 CMS 系统 MySQL 8 初始化脚本
 -- 默认管理员：admin / Admin@123456
--- 说明：脚本使用 CREATE TABLE IF NOT EXISTS 与固定主键初始化数据，便于开发环境重复执行。
+-- 说明：新环境执行本脚本；已有环境按顺序执行 db/migration 下的增量脚本。
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -113,7 +113,9 @@ CREATE TABLE IF NOT EXISTS cms_column (
   column_type VARCHAR(32) NOT NULL COMMENT '栏目类型：PAGE、LIST、IMAGE、DOWNLOAD、LINK、SPECIAL',
   route_path VARCHAR(255) DEFAULT NULL COMMENT '路由路径',
   external_url VARCHAR(512) DEFAULT NULL COMMENT '外链地址',
-  template_key VARCHAR(64) DEFAULT NULL COMMENT '模板标识',
+  template_key VARCHAR(64) DEFAULT NULL COMMENT '栏目页模板编码',
+  detail_template_key VARCHAR(64) DEFAULT NULL COMMENT '内容详情页模板编码',
+  template_config JSON DEFAULT NULL COMMENT '按 page/detail 分组的受控模板配置',
   cover_url VARCHAR(512) DEFAULT NULL COMMENT '栏目封面',
   sort_no INT NOT NULL DEFAULT 0 COMMENT '排序号',
   nav_visible TINYINT NOT NULL DEFAULT 1 COMMENT '是否显示在导航：0 否，1 是',
@@ -154,6 +156,7 @@ CREATE TABLE IF NOT EXISTS cms_content (
   seo_title VARCHAR(255) DEFAULT NULL COMMENT 'SEO 标题',
   seo_keywords VARCHAR(512) DEFAULT NULL COMMENT 'SEO 关键词',
   seo_description VARCHAR(1024) DEFAULT NULL COMMENT 'SEO 描述',
+  extension_data JSON DEFAULT NULL COMMENT '模板白名单约束的扩展数据',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   created_by BIGINT UNSIGNED DEFAULT NULL COMMENT '创建人',
@@ -192,7 +195,11 @@ CREATE TABLE IF NOT EXISTS cms_banner (
   site_type VARCHAR(32) NOT NULL DEFAULT 'MAIN_SITE' COMMENT '站点类型：MAIN_SITE、RECRUIT_SITE',
   position VARCHAR(64) NOT NULL COMMENT '展示位置：HOME、RECRUIT_HOME、COLUMN',
   title VARCHAR(255) NOT NULL COMMENT '标题',
+  subtitle VARCHAR(255) DEFAULT NULL COMMENT '副标题',
   image_url VARCHAR(512) NOT NULL COMMENT '图片地址',
+  mobile_image_url VARCHAR(512) DEFAULT NULL COMMENT '手机端图片地址',
+  link_type VARCHAR(16) NOT NULL DEFAULT 'NONE' COMMENT '跳转类型：NONE、CONTENT、COLUMN、EXTERNAL',
+  link_ref_id BIGINT UNSIGNED DEFAULT NULL COMMENT '内部内容或栏目引用 ID',
   link_url VARCHAR(512) DEFAULT NULL COMMENT '跳转链接',
   link_target VARCHAR(16) NOT NULL DEFAULT '_self' COMMENT '打开方式：_self、_blank',
   sort_no INT NOT NULL DEFAULT 0 COMMENT '排序号',
@@ -207,9 +214,34 @@ CREATE TABLE IF NOT EXISTS cms_banner (
   deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0 未删除，1 已删除',
   PRIMARY KEY (id),
   KEY idx_cms_banner_site_position_enabled (site_type, position, enabled, deleted),
+  KEY idx_cms_banner_link_ref (link_type, link_ref_id, deleted),
   KEY idx_cms_banner_time_range (start_time, end_time),
   KEY idx_cms_banner_sort_no (sort_no)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Banner 表';
+
+CREATE TABLE IF NOT EXISTS cms_page_section (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
+  site_type VARCHAR(32) NOT NULL COMMENT '站点类型：MAIN_SITE、RECRUIT_SITE',
+  page_code VARCHAR(64) NOT NULL COMMENT '页面编码：HOME、RECRUIT_HOME',
+  section_code VARCHAR(64) NOT NULL COMMENT '页面内稳定区块编码',
+  section_name VARCHAR(128) NOT NULL COMMENT '区块名称',
+  section_type VARCHAR(32) NOT NULL COMMENT '区块类型：HERO_BANNER、CONTENT_FEED、QUICK_LINKS、IMAGE_GALLERY、FRIEND_LINKS、CONTACT_INFO',
+  data_source_column_id BIGINT UNSIGNED DEFAULT NULL COMMENT '同站点数据源栏目 ID',
+  display_count INT UNSIGNED DEFAULT NULL COMMENT '展示数量',
+  display_style VARCHAR(64) DEFAULT NULL COMMENT '预定义展示样式',
+  config_json JSON DEFAULT NULL COMMENT '区块类型白名单约束的配置',
+  sort_no INT NOT NULL DEFAULT 0 COMMENT '排序号',
+  enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用：0 否，1 是',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  created_by BIGINT UNSIGNED DEFAULT NULL COMMENT '创建人',
+  updated_by BIGINT UNSIGNED DEFAULT NULL COMMENT '更新人',
+  deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0 未删除，1 已删除',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_cms_page_section_site_page_code_deleted (site_type, page_code, section_code, deleted),
+  KEY idx_cms_page_section_page_enabled (site_type, page_code, enabled, deleted, sort_no),
+  KEY idx_cms_page_section_data_source (data_source_column_id, deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='固定模板页面区块表';
 
 CREATE TABLE IF NOT EXISTS cms_media (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
@@ -422,19 +454,19 @@ ON DUPLICATE KEY UPDATE
   deleted = VALUES(deleted);
 
 INSERT INTO cms_column (
-  id, parent_id, site_type, column_name, column_code, column_type, route_path, external_url, template_key, sort_no, nav_visible, enabled, seo_title, seo_keywords, seo_description, remark, created_by, updated_by, deleted
+  id, parent_id, site_type, column_name, column_code, column_type, route_path, external_url, template_key, detail_template_key, sort_no, nav_visible, enabled, seo_title, seo_keywords, seo_description, remark, created_by, updated_by, deleted
 ) VALUES
-  (100, 0, 'MAIN_SITE', '学校概况', 'about', 'PAGE', '/about', NULL, 'page', 10, 1, 1, '学校概况', '学校概况,高校官网', '展示学校简介、校史沿革、校园风貌等内容', NULL, 1, 1, 0),
-  (101, 0, 'MAIN_SITE', '新闻中心', 'news', 'LIST', '/news', NULL, 'list', 20, 1, 1, '新闻中心', '新闻,动态,高校官网', '展示学校新闻动态', NULL, 1, 1, 0),
-  (102, 0, 'MAIN_SITE', '通知公告', 'notice', 'LIST', '/notice', NULL, 'list', 30, 1, 1, '通知公告', '通知,公告', '展示学校通知公告', NULL, 1, 1, 0),
-  (103, 0, 'MAIN_SITE', '机构设置', 'organization', 'LIST', '/organization', NULL, 'list', 40, 1, 1, '机构设置', '机构设置', '展示学校机构与部门信息', NULL, 1, 1, 0),
-  (104, 0, 'MAIN_SITE', '教育教学', 'education', 'LIST', '/education', NULL, 'list', 50, 1, 1, '教育教学', '教育教学', '展示教育教学相关内容', NULL, 1, 1, 0),
-  (105, 0, 'MAIN_SITE', '学生工作', 'student-work', 'LIST', '/student-work', NULL, 'list', 60, 1, 1, '学生工作', '学生工作', '展示学生工作相关内容', NULL, 1, 1, 0),
-  (106, 0, 'MAIN_SITE', '公共服务', 'service', 'LIST', '/service', NULL, 'list', 70, 1, 1, '公共服务', '公共服务', '提供常用服务入口', NULL, 1, 1, 0),
-  (200, 0, 'RECRUIT_SITE', '招生信息', 'admission', 'LIST', '/recruit/admission', NULL, 'list', 10, 1, 1, '招生信息', '招生,高校招生', '展示招生简章、招生动态等内容', NULL, 1, 1, 0),
-  (201, 0, 'RECRUIT_SITE', '就业信息', 'employment', 'LIST', '/recruit/employment', NULL, 'list', 20, 1, 1, '就业信息', '就业,招聘', '展示就业动态、招聘信息等内容', NULL, 1, 1, 0),
-  (202, 0, 'RECRUIT_SITE', '校企合作', 'school-enterprise', 'LIST', '/recruit/school-enterprise', NULL, 'list', 30, 1, 1, '校企合作', '校企合作', '展示校企合作相关内容', NULL, 1, 1, 0),
-  (203, 0, 'RECRUIT_SITE', '政策公告', 'recruit-policy', 'LIST', '/recruit/policy', NULL, 'list', 40, 1, 1, '政策公告', '政策,公告', '展示招生就业政策公告', NULL, 1, 1, 0)
+  (100, 0, 'MAIN_SITE', '学校概况', 'about', 'PAGE', '/about', NULL, 'SINGLE_PAGE', NULL, 10, 1, 1, '学校概况', '学校概况,高校官网', '展示学校简介、校史沿革、校园风貌等内容', NULL, 1, 1, 0),
+  (101, 0, 'MAIN_SITE', '新闻中心', 'news', 'LIST', '/news', NULL, 'ARTICLE_LIST', 'ARTICLE_DETAIL', 20, 1, 1, '新闻中心', '新闻,动态,高校官网', '展示学校新闻动态', NULL, 1, 1, 0),
+  (102, 0, 'MAIN_SITE', '通知公告', 'notice', 'LIST', '/notice', NULL, 'ARTICLE_LIST', 'ARTICLE_DETAIL', 30, 1, 1, '通知公告', '通知,公告', '展示学校通知公告', NULL, 1, 1, 0),
+  (103, 0, 'MAIN_SITE', '机构设置', 'organization', 'LIST', '/organization', NULL, 'ORGANIZATION', NULL, 40, 1, 1, '机构设置', '机构设置', '展示学校机构与部门信息', NULL, 1, 1, 0),
+  (104, 0, 'MAIN_SITE', '教育教学', 'education', 'LIST', '/education', NULL, 'ARTICLE_LIST', 'ARTICLE_DETAIL', 50, 1, 1, '教育教学', '教育教学', '展示教育教学相关内容', NULL, 1, 1, 0),
+  (105, 0, 'MAIN_SITE', '学生工作', 'student-work', 'LIST', '/student-work', NULL, 'ARTICLE_LIST', 'ARTICLE_DETAIL', 60, 1, 1, '学生工作', '学生工作', '展示学生工作相关内容', NULL, 1, 1, 0),
+  (106, 0, 'MAIN_SITE', '公共服务', 'service', 'LIST', '/service', NULL, 'SERVICE_DIRECTORY', NULL, 70, 1, 1, '公共服务', '公共服务', '提供常用服务入口', NULL, 1, 1, 0),
+  (200, 0, 'RECRUIT_SITE', '招生信息', 'admission', 'LIST', '/recruit/admission', NULL, 'ARTICLE_LIST', 'ARTICLE_DETAIL', 10, 1, 1, '招生信息', '招生,高校招生', '展示招生简章、招生动态等内容', NULL, 1, 1, 0),
+  (201, 0, 'RECRUIT_SITE', '就业信息', 'employment', 'LIST', '/recruit/employment', NULL, 'ARTICLE_LIST', 'ARTICLE_DETAIL', 20, 1, 1, '就业信息', '就业,招聘', '展示就业动态、招聘信息等内容', NULL, 1, 1, 0),
+  (202, 0, 'RECRUIT_SITE', '校企合作', 'school-enterprise', 'LIST', '/recruit/school-enterprise', NULL, 'ARTICLE_LIST', 'ARTICLE_DETAIL', 30, 1, 1, '校企合作', '校企合作', '展示校企合作相关内容', NULL, 1, 1, 0),
+  (203, 0, 'RECRUIT_SITE', '政策公告', 'recruit-policy', 'LIST', '/recruit/policy', NULL, 'ARTICLE_LIST', 'ARTICLE_DETAIL', 40, 1, 1, '政策公告', '政策,公告', '展示招生就业政策公告', NULL, 1, 1, 0)
 ON DUPLICATE KEY UPDATE
   parent_id = VALUES(parent_id),
   column_name = VALUES(column_name),
@@ -442,12 +474,50 @@ ON DUPLICATE KEY UPDATE
   route_path = VALUES(route_path),
   external_url = VALUES(external_url),
   template_key = VALUES(template_key),
+  detail_template_key = VALUES(detail_template_key),
   sort_no = VALUES(sort_no),
   nav_visible = VALUES(nav_visible),
   enabled = VALUES(enabled),
   seo_title = VALUES(seo_title),
   seo_keywords = VALUES(seo_keywords),
   seo_description = VALUES(seo_description),
+  updated_by = VALUES(updated_by),
+  deleted = VALUES(deleted);
+
+UPDATE cms_column
+SET template_config = CASE template_key
+  WHEN 'ARTICLE_LIST' THEN CAST('{"page":{"listStyle":"IMAGE_TEXT","pageSize":10,"showCover":true,"showSummary":true,"showPublishAt":true,"showViewCount":false,"defaultSort":"PUBLISH_AT_DESC","emptyText":"暂无相关内容"},"detail":{"showAuthor":true,"showSource":true,"showPublishAt":true,"showViewCount":true,"showSiblingNavigation":true,"showAttachments":true,"showRelated":false,"relatedCount":4,"shareEnabled":false}}' AS JSON)
+  WHEN 'SINGLE_PAGE' THEN CAST('{"page":{}}' AS JSON)
+  WHEN 'ORGANIZATION' THEN CAST('{"page":{"displayStyle":"GROUPED"}}' AS JSON)
+  WHEN 'SERVICE_DIRECTORY' THEN CAST('{"page":{"displayStyle":"ICON_GRID"}}' AS JSON)
+  ELSE template_config
+END
+WHERE template_config IS NULL
+  AND template_key IN ('ARTICLE_LIST', 'SINGLE_PAGE', 'ORGANIZATION', 'SERVICE_DIRECTORY');
+
+INSERT INTO cms_page_section (
+  site_type, page_code, section_code, section_name, section_type, data_source_column_id, display_count, display_style, config_json, sort_no, enabled, created_by, updated_by, deleted
+) VALUES
+  ('MAIN_SITE', 'HOME', 'HERO', '首页轮播', 'HERO_BANNER', NULL, NULL, 'FULL_WIDTH', '{"bannerPosition":"HOME"}', 10, 1, 1, 1, 0),
+  ('MAIN_SITE', 'HOME', 'SCHOOL_NEWS', '学校新闻', 'CONTENT_FEED', (SELECT id FROM cms_column WHERE site_type = 'MAIN_SITE' AND column_code = 'news' AND deleted = 0 LIMIT 1), 6, 'IMAGE_TEXT', NULL, 20, 1, 1, 1, 0),
+  ('MAIN_SITE', 'HOME', 'NOTICE', '通知公告', 'CONTENT_FEED', (SELECT id FROM cms_column WHERE site_type = 'MAIN_SITE' AND column_code = 'notice' AND deleted = 0 LIMIT 1), 8, 'TEXT_LIST', NULL, 30, 1, 1, 1, 0),
+  ('MAIN_SITE', 'HOME', 'QUICK_LINKS', '快捷入口', 'QUICK_LINKS', NULL, NULL, 'ICON_GRID', NULL, 40, 1, 1, 1, 0),
+  ('MAIN_SITE', 'HOME', 'CAMPUS_GALLERY', '校园风采', 'IMAGE_GALLERY', NULL, 8, 'GRID', NULL, 50, 1, 1, 1, 0),
+  ('MAIN_SITE', 'HOME', 'FRIEND_LINKS', '友情链接', 'FRIEND_LINKS', NULL, NULL, 'TEXT_LINKS', NULL, 60, 1, 1, 1, 0),
+  ('RECRUIT_SITE', 'RECRUIT_HOME', 'HERO', '专题主视觉', 'HERO_BANNER', NULL, NULL, 'FULL_WIDTH', '{"bannerPosition":"RECRUIT_HOME"}', 10, 1, 1, 1, 0),
+  ('RECRUIT_SITE', 'RECRUIT_HOME', 'ADMISSION_NEWS', '招生动态', 'CONTENT_FEED', (SELECT id FROM cms_column WHERE site_type = 'RECRUIT_SITE' AND column_code = 'admission' AND deleted = 0 LIMIT 1), 6, 'IMAGE_TEXT', NULL, 20, 1, 1, 1, 0),
+  ('RECRUIT_SITE', 'RECRUIT_HOME', 'EMPLOYMENT_NEWS', '就业信息', 'CONTENT_FEED', (SELECT id FROM cms_column WHERE site_type = 'RECRUIT_SITE' AND column_code = 'employment' AND deleted = 0 LIMIT 1), 6, 'TEXT_LIST', NULL, 30, 1, 1, 1, 0),
+  ('RECRUIT_SITE', 'RECRUIT_HOME', 'SCHOOL_ENTERPRISE', '校企合作', 'CONTENT_FEED', (SELECT id FROM cms_column WHERE site_type = 'RECRUIT_SITE' AND column_code = 'school-enterprise' AND deleted = 0 LIMIT 1), 6, 'IMAGE_TEXT', NULL, 40, 1, 1, 1, 0),
+  ('RECRUIT_SITE', 'RECRUIT_HOME', 'RECRUIT_POLICY', '政策公告', 'CONTENT_FEED', (SELECT id FROM cms_column WHERE site_type = 'RECRUIT_SITE' AND column_code = 'recruit-policy' AND deleted = 0 LIMIT 1), 8, 'TEXT_LIST', NULL, 50, 1, 1, 1, 0),
+  ('RECRUIT_SITE', 'RECRUIT_HOME', 'QUICK_LINKS', '专题快捷入口', 'QUICK_LINKS', NULL, NULL, 'ICON_GRID', NULL, 60, 1, 1, 1, 0),
+  ('RECRUIT_SITE', 'RECRUIT_HOME', 'CONTACT', '联系我们', 'CONTACT_INFO', NULL, NULL, 'DEFAULT', NULL, 70, 1, 1, 1, 0)
+ON DUPLICATE KEY UPDATE
+  section_name = VALUES(section_name),
+  section_type = VALUES(section_type),
+  data_source_column_id = COALESCE(cms_page_section.data_source_column_id, VALUES(data_source_column_id)),
+  display_count = COALESCE(cms_page_section.display_count, VALUES(display_count)),
+  display_style = COALESCE(cms_page_section.display_style, VALUES(display_style)),
+  config_json = COALESCE(cms_page_section.config_json, VALUES(config_json)),
   updated_by = VALUES(updated_by),
   deleted = VALUES(deleted);
 

@@ -26,7 +26,10 @@ public class MybatisAuthUserRepository implements AuthUserRepository {
         }
 
         List<String> roleCodes = authUserMapper.findRoleCodesByUserId(user.id());
-        List<AuthPermission> permissions = authUserMapper.findPermissionsByUserId(user.id())
+        List<AuthPermissionRow> permissionRows = roleCodes.contains("SUPER_ADMIN")
+            ? authUserMapper.findAllPermissions()
+            : authUserMapper.findPermissionsByUserId(user.id());
+        List<AuthPermission> permissions = permissionRows
             .stream()
             .map(this::toPermission)
             .toList();
