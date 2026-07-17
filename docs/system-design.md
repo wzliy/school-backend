@@ -287,13 +287,39 @@ OTHER     zip
 
 友情链接支持 `GLOBAL`、`MAIN_SITE` 和 `RECRUIT_SITE` 三类作用域，以及名称、链接地址、Logo、排序、启用禁用和备注。跳转地址只允许有效 HTTP/HTTPS URL；Logo 可使用安全的站内绝对路径或有效 HTTP/HTTPS URL。列表按 `sortNo`、`id` 升序返回，删除采用逻辑删除并同时停用。
 
-### 5.7 搜索
+### 5.7 基础 SEO
+
+栏目、内容和站点默认配置共同形成 SEO 数据。后台预览与后续 Portal API 共用 `SeoMetadataService`，统一返回 `title`、`keywords`、`description` 和 `canonicalPath`，避免各接口分别实现回退规则。
+
+栏目回退规则：
+
+```text
+title        栏目 SEO 标题 > 栏目名称 > 站点默认标题
+keywords     栏目 SEO 关键词 > 站点默认关键词
+description  栏目 SEO 描述 > 站点默认描述
+```
+
+内容回退规则：
+
+```text
+title        内容 SEO 标题 > 栏目 SEO 标题 > 内容标题 > 栏目名称 > 站点默认标题
+keywords     内容 SEO 关键词 > 栏目 SEO 关键词 > 站点默认关键词
+description  内容 SEO 描述 > 栏目 SEO 描述 > 内容摘要 > 站点默认描述
+```
+
+栏目 canonical 路径优先使用 `route_path`，为空时回退为 `/columns/{id}`；内容路径使用 `{栏目 canonical 路径}/{contentId}`。后端只返回 canonical 路径，域名拼接和 HTML 标签渲染由前端负责。
+
+### 5.8 搜索
 
 首版搜索基于数据库查询实现，支持关键词匹配标题、按栏目筛选、发布时间排序和分页展示。后续如需全文检索，可接入 Elasticsearch 或 MySQL Fulltext。
 
-### 5.8 日志
+### 5.9 日志
 
-日志分为登录日志、操作日志、内容发布日志、文件上传日志和接口异常日志。首版至少落库登录日志和后台写操作日志。
+登录服务在账号密码校验完成后记录成功或失败结果，包括账号、用户 ID、客户端 IP、User-Agent 和通用失败原因。认证失败不记录明文密码，也不通过失败原因暴露账号是否存在。
+
+后台写操作通过安全过滤链统一审计，覆盖 `/api/admin/**` 下的 `POST`、`PUT`、`PATCH` 和 `DELETE`，登录接口单独使用登录日志。操作日志保存用户、模块、动作、请求方法、路径、IP、参数摘要、结果、失败摘要和耗时；日志查询等只读请求不重复记录。
+
+参数摘要按结构化 JSON 处理，字段名包含 `password`、`secret`、`token`、`authorization` 或 `credential` 时统一替换为 `***`。非 JSON 请求不保存原始请求体，摘要最长 2000 个字符。审计持久化异常只写应用告警日志，不覆盖原业务响应。
 
 ## 6. 数据模型设计
 
@@ -509,6 +535,24 @@ DELETE /api/admin/friend-links/{id}
 
 友情链接列表支持 `keyword`、`siteType`、`enabled`、`pageNo` 和 `pageSize` 查询参数。读取要求 `cms:friend-link` 权限，新增、编辑、排序、启停和删除要求 `cms:friend-link:manage` 权限。
 
+SEO 预览：
+
+```text
+GET /api/admin/seo/columns/{id}
+GET /api/admin/seo/contents/{id}
+```
+
+栏目 SEO 预览复用 `cms:column` 权限，内容 SEO 预览复用 `cms:content` 权限，不增加独立 SEO 权限点。
+
+日志查询：
+
+```text
+GET /api/admin/logs/operations
+GET /api/admin/logs/login
+```
+
+操作日志支持 `username`、`moduleName`、`operationType`、`resultStatus`、`startTime`、`endTime`、`pageNo` 和 `pageSize` 筛选，要求 `log:operation` 权限。登录日志支持 `username`、`loginStatus`、`startTime`、`endTime`、`pageNo` 和 `pageSize` 筛选，要求 `log:login` 权限。时间参数使用 ISO-8601 本地日期时间，开始时间不能晚于结束时间。
+
 前台公开 API：
 
 ```text
@@ -533,7 +577,7 @@ GET /api/portal/pages/{pageCode}
 4. 无权限访问后台接口返回 403。
 5. 文件上传限制大小、后缀和 MIME 类型。
 6. 富文本内容进入前台展示前进行安全处理，避免 XSS。
-7. 后台写操作记录操作日志，包含用户、IP、接口、参数摘要和执行结果。
+7. 后台写操作记录操作日志，包含用户、IP、接口、脱敏参数摘要、执行结果和耗时；密码、令牌和密钥不得进入日志。
 8. 管理员账号支持启用禁用和密码重置。
 9. 模板编码、区块类型和 JSON 配置使用服务端白名单及结构校验，禁止通过配置注入脚本、组件路径或任意查询条件。
 10. 外部链接仅允许 `http`、`https` 等约定协议，后台保存时校验协议，前台输出时进行安全属性处理。
@@ -1479,7 +1523,7 @@ CONTENT_SELECT  内容选择
 
 ### 14.8 SEO 数据与接口输出规则
 
-1. Portal API 按“内容 SEO 标题 > 栏目 SEO 标题 > 内容标题或栏目名称 > 站点默认标题”顺序计算并返回 SEO 回退结果，关键词和描述采用同类规则。
+1. Portal API 复用 `SeoMetadataService`，按 5.7 节规则计算并返回 SEO 回退结果，不在控制器中重复实现。
 2. 已下线、已删除或不存在内容返回正确 API HTTP 状态，不以空对象冒充有效数据；canonical 路径所需标识由接口返回，最终标签由前端渲染。
 3. Banner、封面和主视觉可分别保存桌面端与移动端资源地址；未配置移动图时的裁切和展示策略由前端负责。
 4. Portal 列表接口通过明确的查询参数接收分页、筛选和排序条件，并在 OpenAPI 中说明默认值和边界。

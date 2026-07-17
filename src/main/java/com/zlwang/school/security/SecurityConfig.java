@@ -1,6 +1,8 @@
 package com.zlwang.school.security;
 
+import com.zlwang.school.infrastructure.audit.OperationLogFilter;
 import com.zlwang.school.infrastructure.storage.FileStorageProperties;
+import com.zlwang.school.modules.log.repository.OperationLogRepository;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,7 +19,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import tools.jackson.databind.ObjectMapper;
 
 @Configuration
 @EnableMethodSecurity
@@ -30,7 +34,9 @@ public class SecurityConfig {
         DatabaseJwtAuthenticationConverter jwtAuthenticationConverter,
         RestAuthenticationEntryPoint authenticationEntryPoint,
         RestAccessDeniedHandler accessDeniedHandler,
-        FileStorageProperties fileStorageProperties
+        FileStorageProperties fileStorageProperties,
+        OperationLogRepository operationLogRepository,
+        ObjectMapper objectMapper
     ) {
         return http
             .csrf(AbstractHttpConfigurer::disable)
@@ -64,6 +70,10 @@ public class SecurityConfig {
                 .authenticationEntryPoint(authenticationEntryPoint)
                 .accessDeniedHandler(accessDeniedHandler)
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
+            )
+            .addFilterAfter(
+                new OperationLogFilter(operationLogRepository, objectMapper),
+                AuthorizationFilter.class
             )
             .build();
     }

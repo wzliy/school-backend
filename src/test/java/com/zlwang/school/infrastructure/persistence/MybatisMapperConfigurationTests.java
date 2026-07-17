@@ -7,6 +7,8 @@ import com.zlwang.school.infrastructure.persistence.banner.CmsBannerMapper;
 import com.zlwang.school.infrastructure.persistence.column.CmsColumnMapper;
 import com.zlwang.school.infrastructure.persistence.content.CmsContentMapper;
 import com.zlwang.school.infrastructure.persistence.link.CmsFriendLinkMapper;
+import com.zlwang.school.infrastructure.persistence.log.LoginLogMapper;
+import com.zlwang.school.infrastructure.persistence.log.OperationLogMapper;
 import com.zlwang.school.infrastructure.persistence.media.CmsMediaMapper;
 import com.zlwang.school.infrastructure.persistence.page.PageSectionMapper;
 import com.zlwang.school.infrastructure.persistence.permission.SystemPermissionMapper;
@@ -28,7 +30,9 @@ class MybatisMapperConfigurationTests {
         configuration.addMapper(CmsColumnMapper.class);
         configuration.addMapper(CmsContentMapper.class);
         configuration.addMapper(CmsFriendLinkMapper.class);
+        configuration.addMapper(LoginLogMapper.class);
         configuration.addMapper(CmsMediaMapper.class);
+        configuration.addMapper(OperationLogMapper.class);
         configuration.addMapper(PageSectionMapper.class);
         configuration.addMapper(SystemPermissionMapper.class);
         configuration.addMapper(SystemRoleMapper.class);
@@ -61,6 +65,12 @@ class MybatisMapperConfigurationTests {
         )).isTrue();
         assertThat(configuration.hasStatement(
             CmsFriendLinkMapper.class.getName() + ".findFriendLinks"
+        )).isTrue();
+        assertThat(configuration.hasStatement(
+            OperationLogMapper.class.getName() + ".findLogs"
+        )).isTrue();
+        assertThat(configuration.hasStatement(
+            LoginLogMapper.class.getName() + ".findLogs"
         )).isTrue();
         assertThat(configuration.hasStatement(
             CmsSiteConfigMapper.class.getName() + ".findAll"

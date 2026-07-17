@@ -2,10 +2,12 @@ package com.zlwang.school.modules.auth.controller;
 
 import com.zlwang.school.common.api.ApiResult;
 import com.zlwang.school.modules.auth.dto.LoginRequest;
+import com.zlwang.school.modules.auth.model.LoginClientInfo;
 import com.zlwang.school.modules.auth.service.AuthService;
 import com.zlwang.school.modules.auth.vo.CurrentUserResponse;
 import com.zlwang.school.modules.auth.vo.LoginResponse;
 import com.zlwang.school.security.AuthenticatedUser;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,8 +27,14 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ApiResult<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ApiResult.success(authService.login(request));
+    public ApiResult<LoginResponse> login(
+        @Valid @RequestBody LoginRequest request,
+        HttpServletRequest httpRequest
+    ) {
+        return ApiResult.success(authService.login(
+            request,
+            new LoginClientInfo(httpRequest.getRemoteAddr(), httpRequest.getHeader("User-Agent"))
+        ));
     }
 
     @GetMapping("/me")
