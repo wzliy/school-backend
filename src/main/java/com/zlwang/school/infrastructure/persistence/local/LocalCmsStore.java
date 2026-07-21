@@ -606,6 +606,25 @@ public class LocalCmsStore {
         return Optional.ofNullable(contents.get(id)).map(this::withAttachments);
     }
 
+    public synchronized PageResult<CmsContent> findPublishedContentPage(
+        long columnId,
+        SiteType siteType,
+        LocalDateTime publishedAt,
+        long pageNo,
+        long pageSize
+    ) {
+        List<CmsContent> matched = publicContents(siteType, publishedAt)
+            .filter(content -> content.columnId() == columnId)
+            .toList();
+        long offset = (pageNo - 1) * pageSize;
+        if (offset >= matched.size()) {
+            return PageResult.of(List.of(), matched.size(), pageNo, pageSize);
+        }
+        int fromIndex = Math.toIntExact(offset);
+        int toIndex = Math.min(matched.size(), Math.toIntExact(offset + pageSize));
+        return PageResult.of(matched.subList(fromIndex, toIndex), matched.size(), pageNo, pageSize);
+    }
+
     public synchronized List<CmsContent> findPublishedContents(
         long columnId,
         SiteType siteType,

@@ -18,7 +18,7 @@ import com.zlwang.school.modules.content.repository.CmsContentRepository;
 import com.zlwang.school.modules.link.model.CmsFriendLink;
 import com.zlwang.school.modules.link.repository.CmsFriendLinkRepository;
 import com.zlwang.school.modules.portal.vo.PortalBannerResponse;
-import com.zlwang.school.modules.portal.vo.PortalNavigationNodeResponse;
+import com.zlwang.school.modules.portal.vo.PortalColumnTreeNodeResponse;
 import com.zlwang.school.modules.site.model.CmsSiteConfig;
 import com.zlwang.school.modules.site.model.SiteConfigType;
 import com.zlwang.school.modules.site.model.SiteScope;
@@ -94,11 +94,17 @@ class PortalSiteServiceTests {
             .containsEntry("siteName", "主站")
             .containsEntry("contactPhone", "010-12345678");
 
-        List<PortalNavigationNodeResponse> navigation = service.findNavigation(SiteType.MAIN_SITE);
-        assertThat(navigation).extracting(PortalNavigationNodeResponse::id)
+        List<PortalColumnTreeNodeResponse> navigation = service.findNavigation(SiteType.MAIN_SITE);
+        assertThat(navigation).extracting(PortalColumnTreeNodeResponse::id)
             .containsExactly(5L, 1L);
         assertThat(navigation.get(1).children()).singleElement()
             .satisfies(child -> assertThat(child.id()).isEqualTo(2L));
+
+        List<PortalColumnTreeNodeResponse> allColumns = service.findColumnTree(SiteType.MAIN_SITE);
+        assertThat(allColumns).extracting(PortalColumnTreeNodeResponse::id)
+            .containsExactly(1L, 3L);
+        assertThat(allColumns.get(1).children()).singleElement()
+            .satisfies(child -> assertThat(child.id()).isEqualTo(5L));
     }
 
     @Test

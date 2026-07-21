@@ -42,6 +42,23 @@ public class LocalCmsContentRepository implements CmsContentRepository {
     }
 
     @Override
+    public PageResult<CmsContent> findPublishedPage(
+        long columnId,
+        SiteType siteType,
+        LocalDateTime publishedAt,
+        long pageNo,
+        long pageSize
+    ) {
+        return localCmsStore.findPublishedContentPage(
+            columnId,
+            siteType,
+            publishedAt,
+            pageNo,
+            pageSize
+        );
+    }
+
+    @Override
     public List<CmsContent> findPublishedByColumn(
         long columnId,
         SiteType siteType,

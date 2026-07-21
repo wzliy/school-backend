@@ -1,13 +1,16 @@
 package com.zlwang.school.modules.portal.vo;
 
 import com.zlwang.school.modules.column.model.CmsColumn;
+import com.zlwang.school.modules.seo.model.SeoMetadata;
 import com.zlwang.school.modules.template.model.ColumnType;
 import com.zlwang.school.modules.template.model.PageTemplateKey;
-import java.util.List;
+import com.zlwang.school.modules.template.model.SiteType;
+import java.util.Map;
 
-public record PortalNavigationNodeResponse(
+public record PortalColumnDetailResponse(
     long id,
     long parentId,
+    SiteType siteType,
     String name,
     String code,
     ColumnType columnType,
@@ -15,21 +18,20 @@ public record PortalNavigationNodeResponse(
     String externalUrl,
     PageTemplateKey templateKey,
     PageTemplateKey detailTemplateKey,
+    Map<String, Object> templateConfig,
     String coverUrl,
-    List<PortalNavigationNodeResponse> children
+    SeoMetadata seo
 ) {
 
-    public PortalNavigationNodeResponse {
-        children = children == null ? List.of() : List.copyOf(children);
+    public PortalColumnDetailResponse {
+        templateConfig = templateConfig == null ? Map.of() : Map.copyOf(templateConfig);
     }
 
-    public static PortalNavigationNodeResponse from(
-        CmsColumn column,
-        List<PortalNavigationNodeResponse> children
-    ) {
-        return new PortalNavigationNodeResponse(
+    public static PortalColumnDetailResponse from(CmsColumn column, SeoMetadata seo) {
+        return new PortalColumnDetailResponse(
             column.id(),
             column.parentId(),
+            column.siteType(),
             column.columnName(),
             column.columnCode(),
             column.columnType(),
@@ -37,8 +39,9 @@ public record PortalNavigationNodeResponse(
             column.externalUrl(),
             column.templateKey(),
             column.detailTemplateKey(),
+            column.templateConfig(),
             column.coverUrl(),
-            children
+            seo
         );
     }
 }

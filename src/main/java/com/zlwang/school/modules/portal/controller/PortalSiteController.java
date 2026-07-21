@@ -4,8 +4,8 @@ import com.zlwang.school.common.api.ApiResult;
 import com.zlwang.school.modules.banner.model.BannerPosition;
 import com.zlwang.school.modules.portal.service.PortalSiteService;
 import com.zlwang.school.modules.portal.vo.PortalBannerResponse;
+import com.zlwang.school.modules.portal.vo.PortalColumnTreeNodeResponse;
 import com.zlwang.school.modules.portal.vo.PortalFriendLinkResponse;
-import com.zlwang.school.modules.portal.vo.PortalNavigationNodeResponse;
 import com.zlwang.school.modules.portal.vo.PortalSiteConfigResponse;
 import com.zlwang.school.modules.template.model.SiteType;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,7 +37,7 @@ public class PortalSiteController {
 
     @Operation(summary = "查询公开导航树")
     @GetMapping("/navigation")
-    public ApiResult<List<PortalNavigationNodeResponse>> findNavigation(
+    public ApiResult<List<PortalColumnTreeNodeResponse>> findNavigation(
         @RequestParam SiteType siteType
     ) {
         return ApiResult.success(portalSiteService.findNavigation(siteType));

@@ -92,6 +92,57 @@ public interface CmsContentMapper {
     CmsContentRow findById(@Param("id") long id);
 
     @Select("""
+        SELECT COUNT(*)
+        FROM cms_content cc
+        INNER JOIN cms_column c
+          ON c.id = cc.column_id
+         AND c.site_type = #{siteType}
+         AND c.enabled = 1
+         AND c.deleted = 0
+        WHERE cc.column_id = #{columnId}
+          AND cc.site_type = #{siteType}
+          AND cc.status = 'PUBLISHED'
+          AND cc.publish_at IS NOT NULL
+          AND cc.publish_at &lt;= #{publishedAt}
+          AND cc.deleted = 0
+        """)
+    long countPublishedPage(
+        @Param("columnId") long columnId,
+        @Param("siteType") String siteType,
+        @Param("publishedAt") LocalDateTime publishedAt
+    );
+
+    @Select("""
+        SELECT cc.id, cc.column_id, c.column_name, cc.site_type, cc.title, cc.subtitle,
+               cc.summary, cc.content_html, cc.cover_url, cc.source, cc.author,
+               cc.publish_at, cc.status, cc.top_flag, cc.recommend_flag, cc.sort_no,
+               cc.view_count, cc.seo_title, cc.seo_keywords, cc.seo_description,
+               CAST(cc.extension_data AS CHAR) AS extension_data,
+               cc.created_at, cc.updated_at
+        FROM cms_content cc
+        INNER JOIN cms_column c
+          ON c.id = cc.column_id
+         AND c.site_type = #{siteType}
+         AND c.enabled = 1
+         AND c.deleted = 0
+        WHERE cc.column_id = #{columnId}
+          AND cc.site_type = #{siteType}
+          AND cc.status = 'PUBLISHED'
+          AND cc.publish_at IS NOT NULL
+          AND cc.publish_at &lt;= #{publishedAt}
+          AND cc.deleted = 0
+        ORDER BY cc.top_flag DESC, cc.sort_no, cc.publish_at DESC, cc.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+        """)
+    List<CmsContentRow> findPublishedPage(
+        @Param("columnId") long columnId,
+        @Param("siteType") String siteType,
+        @Param("publishedAt") LocalDateTime publishedAt,
+        @Param("offset") long offset,
+        @Param("limit") long limit
+    );
+
+    @Select("""
         SELECT cc.id, cc.column_id, c.column_name, cc.site_type, cc.title, cc.subtitle,
                cc.summary, cc.content_html, cc.cover_url, cc.source, cc.author,
                cc.publish_at, cc.status, cc.top_flag, cc.recommend_flag, cc.sort_no,

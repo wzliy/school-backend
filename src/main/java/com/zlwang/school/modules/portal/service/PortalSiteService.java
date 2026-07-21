@@ -14,8 +14,8 @@ import com.zlwang.school.modules.content.repository.CmsContentRepository;
 import com.zlwang.school.modules.link.repository.CmsFriendLinkRepository;
 import com.zlwang.school.modules.portal.vo.PortalBannerResponse;
 import com.zlwang.school.modules.portal.vo.PortalColumnResponse;
+import com.zlwang.school.modules.portal.vo.PortalColumnTreeNodeResponse;
 import com.zlwang.school.modules.portal.vo.PortalFriendLinkResponse;
-import com.zlwang.school.modules.portal.vo.PortalNavigationNodeResponse;
 import com.zlwang.school.modules.portal.vo.PortalSiteConfigResponse;
 import com.zlwang.school.modules.site.model.CmsSiteConfig;
 import com.zlwang.school.modules.site.model.SiteScope;
@@ -89,13 +89,28 @@ public class PortalSiteService {
         return new PortalSiteConfigResponse(siteType, mergedSiteConfig(siteType));
     }
 
-    public List<PortalNavigationNodeResponse> findNavigation(SiteType siteType) {
-        List<CmsColumn> navigation = navigationColumns(columns(siteType), Integer.MAX_VALUE);
-        Map<Long, CmsColumn> byId = navigation.stream()
+    public List<PortalColumnTreeNodeResponse> findNavigation(SiteType siteType) {
+        return columnTree(siteType, true);
+    }
+
+    List<PortalColumnTreeNodeResponse> findColumnTree(SiteType siteType) {
+        return columnTree(siteType, false);
+    }
+
+    private List<PortalColumnTreeNodeResponse> columnTree(
+        SiteType siteType,
+        boolean navigationOnly
+    ) {
+        List<CmsColumn> visible = columns(siteType).values().stream()
+            .filter(CmsColumn::enabled)
+            .filter(column -> !navigationOnly || column.navVisible())
+            .sorted(COLUMN_ORDER)
+            .toList();
+        Map<Long, CmsColumn> byId = visible.stream()
             .collect(Collectors.toMap(CmsColumn::id, Function.identity()));
         Map<Long, List<CmsColumn>> children = new HashMap<>();
         List<CmsColumn> roots = new ArrayList<>();
-        for (CmsColumn column : navigation) {
+        for (CmsColumn column : visible) {
             if (column.parentId() == 0 || !byId.containsKey(column.parentId())) {
                 roots.add(column);
             } else {
@@ -105,7 +120,7 @@ public class PortalSiteService {
         roots.sort(COLUMN_ORDER);
         children.values().forEach(items -> items.sort(COLUMN_ORDER));
         return roots.stream()
-            .map(root -> navigationNode(root, children, new HashSet<>()))
+            .map(root -> columnNode(root, children, new HashSet<>()))
             .toList();
     }
 
@@ -180,20 +195,20 @@ public class PortalSiteService {
             .toList();
     }
 
-    private PortalNavigationNodeResponse navigationNode(
+    private PortalColumnTreeNodeResponse columnNode(
         CmsColumn column,
         Map<Long, List<CmsColumn>> children,
         Set<Long> ancestors
     ) {
         if (!ancestors.add(column.id())) {
-            return PortalNavigationNodeResponse.from(column, List.of());
+            return PortalColumnTreeNodeResponse.from(column, List.of());
         }
-        List<PortalNavigationNodeResponse> childNodes = children
+        List<PortalColumnTreeNodeResponse> childNodes = children
             .getOrDefault(column.id(), List.of())
             .stream()
-            .map(child -> navigationNode(child, children, new HashSet<>(ancestors)))
+            .map(child -> columnNode(child, children, new HashSet<>(ancestors)))
             .toList();
-        return PortalNavigationNodeResponse.from(column, childNodes);
+        return PortalColumnTreeNodeResponse.from(column, childNodes);
     }
 
     private boolean targetAvailable(

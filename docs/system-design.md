@@ -559,8 +559,9 @@ GET /api/admin/logs/login
 GET /api/portal/site-config?siteType={siteType}
 GET /api/portal/navigation?siteType={siteType}
 GET /api/portal/banners?siteType={siteType}&position={position}
+GET /api/portal/columns?siteType={siteType}
 GET /api/portal/columns/{id}
-GET /api/portal/columns/{id}/contents
+GET /api/portal/columns/{id}/contents?pageNo={pageNo}&pageSize={pageSize}
 GET /api/portal/contents/{id}
 PUT /api/portal/contents/{id}/view-count
 GET /api/portal/search
@@ -1567,6 +1568,27 @@ CONTENT_SELECT  内容选择
 导航节点固定返回 `id`、`parentId`、`name`、`code`、`columnType`、`routePath`、`externalUrl`、`templateKey`、`detailTemplateKey`、`coverUrl` 和 `children`。正常父子栏目保持树结构；若历史数据中父栏目已隐藏而子栏目仍可见，公开导航将该子栏目提升为根节点，避免可见入口被静默丢弃。兄弟节点按 `sortNo`、`id` 升序返回。
 
 `HOME` 位置只允许 `MAIN_SITE`，`RECRUIT_HOME` 位置只允许 `RECRUIT_SITE`，`COLUMN` 可用于两类站点。独立 Banner 查询和页面主视觉聚合复用相同当前时间和内部引用校验，禁止出现一个接口可见、另一个接口不可见的状态漂移。
+
+#### 14.7.5 公开栏目与内容契约
+
+公开栏目与内容接口均允许匿名 GET。栏目树显式传入 `siteType`，栏目详情、栏目内容分页和内容详情使用全局唯一 ID 定位数据，并从目标栏目或内容本身确定站点，不通过域名、Referer 或客户端附加字段推断站点。
+
+| 接口 | 响应与过滤规则 |
+| --- | --- |
+| `GET /api/portal/columns` | 返回指定站点全部已启用栏目树，不受 `navVisible` 限制；节点结构与公开导航节点一致 |
+| `GET /api/portal/columns/{id}` | 返回已启用栏目公开详情、受控模板配置和解析后的 SEO 数据 |
+| `GET /api/portal/columns/{id}/contents` | 返回当前栏目已发布且已到发布时间的内容分页，不返回草稿、下线或未来定时内容 |
+| `GET /api/portal/contents/{id}` | 返回可公开内容正文、扩展数据、附件和解析后的 SEO 数据 |
+
+完整栏目树节点固定返回 `id`、`parentId`、`name`、`code`、`columnType`、`routePath`、`externalUrl`、`templateKey`、`detailTemplateKey`、`coverUrl` 和 `children`。已停用栏目不出现在树中；若已启用子栏目的父栏目缺失或停用，该子栏目提升为根节点。兄弟节点按栏目 `sortNo`、`id` 升序返回。
+
+栏目详情在树节点字段基础上增加 `siteType`、`templateConfig` 和 `seo`，不返回 `enabled`、`navVisible`、原始 SEO 字段、备注或审计时间。不存在或已停用栏目统一返回 HTTP 404，避免向匿名调用方暴露后台状态差异。
+
+栏目内容分页使用 `pageNo` 和 `pageSize`，默认分别为 `1` 和 `10`，`pageSize` 允许范围为 `1-100`。总数统计和分页查询在相同公开条件下执行，不允许先对后台结果分页再在内存过滤。排序固定为置顶优先、`sortNo` 升序、`publishAt` 降序、`id` 降序。列表项返回 `id`、栏目标识与名称、标题、副标题、摘要、封面、来源、作者、发布时间、置顶/推荐标记和浏览量。
+
+内容详情固定返回 `id`、栏目标识与名称、`siteType`、标题、副标题、摘要、已清洗正文、封面、来源、作者、发布时间、浏览量、受控 `extensionData`、`attachments` 和 `seo`。附件只返回 `id`、文件名、公开地址、大小、类型和排序，不返回内部 `mediaId`、内容关联 ID 或审计时间。内容仅在所属栏目已启用、状态为 `PUBLISHED`、`publishAt` 非空且不晚于服务器当前时间时可访问；其余情况统一返回 HTTP 404。
+
+栏目详情和内容详情在完成公开状态校验后复用 `SeoMetadataService`，按 5.7 节规则返回 `title`、`keywords`、`description` 和 `canonicalPath`。本轮列表与详情直接查询 local/MySQL 仓储，不启用结果缓存，后台发布、下线或栏目停用后立即影响公开结果。
 
 ### 14.8 SEO 数据与接口输出规则
 

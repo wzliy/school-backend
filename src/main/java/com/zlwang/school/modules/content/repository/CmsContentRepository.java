@@ -21,6 +21,14 @@ public interface CmsContentRepository {
 
     Optional<CmsContent> findById(long id);
 
+    PageResult<CmsContent> findPublishedPage(
+        long columnId,
+        SiteType siteType,
+        LocalDateTime publishedAt,
+        long pageNo,
+        long pageSize
+    );
+
     List<CmsContent> findPublishedByColumn(
         long columnId,
         SiteType siteType,

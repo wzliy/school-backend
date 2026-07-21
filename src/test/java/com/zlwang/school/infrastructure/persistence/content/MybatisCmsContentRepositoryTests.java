@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.zlwang.school.common.api.PageResult;
 import com.zlwang.school.modules.content.dto.ContentAttachmentRequest;
 import com.zlwang.school.modules.content.model.AttachmentFileType;
 import com.zlwang.school.modules.content.model.CmsContent;
@@ -109,6 +110,33 @@ class MybatisCmsContentRepositoryTests {
             publishedAt,
             8
         )).hasSize(1);
+    }
+
+    @Test
+    void publicPageUsesFilteredCountAndDatabaseOffset() {
+        LocalDateTime publishedAt = LocalDateTime.of(2026, 7, 20, 10, 0);
+        when(cmsContentMapper.countPublishedPage(101L, "MAIN_SITE", publishedAt))
+            .thenReturn(3L);
+        when(cmsContentMapper.findPublishedPage(
+            101L,
+            "MAIN_SITE",
+            publishedAt,
+            2L,
+            2L
+        )).thenReturn(List.of(row(publishedAt)));
+
+        PageResult<CmsContent> page = repository.findPublishedPage(
+            101L,
+            SiteType.MAIN_SITE,
+            publishedAt,
+            2,
+            2
+        );
+
+        assertThat(page.total()).isEqualTo(3);
+        assertThat(page.pageNo()).isEqualTo(2);
+        assertThat(page.records()).singleElement()
+            .satisfies(content -> assertThat(content.attachments()).isEmpty());
     }
 
     @Test

@@ -70,6 +70,29 @@ public class MybatisCmsContentRepository implements CmsContentRepository {
     }
 
     @Override
+    public PageResult<CmsContent> findPublishedPage(
+        long columnId,
+        SiteType siteType,
+        LocalDateTime publishedAt,
+        long pageNo,
+        long pageSize
+    ) {
+        String site = siteType.name();
+        long total = cmsContentMapper.countPublishedPage(columnId, site, publishedAt);
+        if (total == 0) {
+            return PageResult.empty(pageNo, pageSize);
+        }
+        List<CmsContent> records = cmsContentMapper.findPublishedPage(
+            columnId,
+            site,
+            publishedAt,
+            (pageNo - 1) * pageSize,
+            pageSize
+        ).stream().map(row -> toContent(row, List.of())).toList();
+        return PageResult.of(records, total, pageNo, pageSize);
+    }
+
+    @Override
     public List<CmsContent> findPublishedByColumn(
         long columnId,
         SiteType siteType,

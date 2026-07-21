@@ -67,6 +67,12 @@ class MybatisMapperConfigurationTests {
             CmsContentMapper.class.getName() + ".findPublishedByColumn"
         )).isTrue();
         assertThat(configuration.hasStatement(
+            CmsContentMapper.class.getName() + ".countPublishedPage"
+        )).isTrue();
+        assertThat(configuration.hasStatement(
+            CmsContentMapper.class.getName() + ".findPublishedPage"
+        )).isTrue();
+        assertThat(configuration.hasStatement(
             CmsContentMapper.class.getName() + ".findPublishedGallery"
         )).isTrue();
         assertThat(configuration.hasStatement(
