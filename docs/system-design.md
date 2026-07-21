@@ -556,18 +556,20 @@ GET /api/admin/logs/login
 前台公开 API：
 
 ```text
-GET /api/portal/site-config
-GET /api/portal/navigation
-GET /api/portal/banners
+GET /api/portal/site-config?siteType={siteType}
+GET /api/portal/navigation?siteType={siteType}
+GET /api/portal/banners?siteType={siteType}&position={position}
 GET /api/portal/columns/{id}
 GET /api/portal/columns/{id}/contents
 GET /api/portal/contents/{id}
 PUT /api/portal/contents/{id}/view-count
 GET /api/portal/search
-GET /api/portal/friend-links
+GET /api/portal/friend-links?siteType={siteType}
 GET /api/portal/recruit/home
 GET /api/portal/pages/{pageCode}
 ```
+
+站点公共查询中的 `siteType` 必须是 `MAIN_SITE` 或 `RECRUIT_SITE`，不接受仅用于配置和友情链接作用域的 `GLOBAL`。Banner 查询还必须传入 `HOME`、`RECRUIT_HOME` 或 `COLUMN` 位置，首页位置与站点不匹配时返回参数错误。
 
 ## 8. 安全设计
 
@@ -1550,6 +1552,21 @@ CONTENT_SELECT  内容选择
 | `CONTACT_INFO` | 合并后的站点配置；按 `showPhone`、`showEmail`、`showAddress` 控制返回字段 |
 
 若内容流的数据源栏目不存在、已停用或站点不匹配，聚合接口直接剔除该区块，避免把悬空配置暴露给前端。合法区块没有数据时仍保留区块元数据并返回空数据槽，保证空数据响应结构稳定。
+
+#### 14.7.4 公开站点公共数据契约
+
+站点配置、导航、Banner 和友情链接独立接口与页面聚合共用 `PortalSiteService`，避免同一数据在独立接口和聚合接口中使用不同公开规则。四个接口均为匿名 GET，并要求显式传入目标 `siteType`。
+
+| 接口 | 响应与过滤规则 |
+| --- | --- |
+| `GET /api/portal/site-config` | 返回 `siteType` 和 `configs`；先加载 `GLOBAL`，再由当前站点同名键覆盖 |
+| `GET /api/portal/navigation` | 只返回同站点、已启用且导航可见的栏目树，不暴露 SEO 原始字段、备注、审计时间或后台状态字段 |
+| `GET /api/portal/banners` | 只返回同站点、指定位置、已启用且当前有效的 Banner，并过滤不可公开的内部内容或栏目引用 |
+| `GET /api/portal/friend-links` | 合并 `GLOBAL` 与当前站点作用域内已启用链接，只返回名称、地址和 Logo |
+
+导航节点固定返回 `id`、`parentId`、`name`、`code`、`columnType`、`routePath`、`externalUrl`、`templateKey`、`detailTemplateKey`、`coverUrl` 和 `children`。正常父子栏目保持树结构；若历史数据中父栏目已隐藏而子栏目仍可见，公开导航将该子栏目提升为根节点，避免可见入口被静默丢弃。兄弟节点按 `sortNo`、`id` 升序返回。
+
+`HOME` 位置只允许 `MAIN_SITE`，`RECRUIT_HOME` 位置只允许 `RECRUIT_SITE`，`COLUMN` 可用于两类站点。独立 Banner 查询和页面主视觉聚合复用相同当前时间和内部引用校验，禁止出现一个接口可见、另一个接口不可见的状态漂移。
 
 ### 14.8 SEO 数据与接口输出规则
 

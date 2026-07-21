@@ -82,16 +82,20 @@ class PortalPageServiceTests {
 
     @BeforeEach
     void setUp() {
-        service = new PortalPageService(
-            new PageSectionRegistry(),
-            pageSectionRepository,
+        PortalSiteService portalSiteService = new PortalSiteService(
             cmsColumnRepository,
             cmsContentRepository,
             cmsBannerRepository,
             cmsFriendLinkRepository,
             cmsSiteConfigRepository,
-            seoMetadataService,
             CLOCK
+        );
+        service = new PortalPageService(
+            new PageSectionRegistry(),
+            pageSectionRepository,
+            cmsContentRepository,
+            seoMetadataService,
+            portalSiteService
         );
     }
 
