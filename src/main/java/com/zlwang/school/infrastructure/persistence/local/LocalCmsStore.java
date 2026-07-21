@@ -60,6 +60,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -270,6 +271,21 @@ public class LocalCmsStore {
 
     public synchronized Optional<CmsBanner> findBanner(long id) {
         return Optional.ofNullable(banners.get(id));
+    }
+
+    public synchronized List<CmsBanner> findActiveBanners(
+        SiteType siteType,
+        BannerPosition position,
+        LocalDateTime effectiveAt
+    ) {
+        return banners.values().stream()
+            .filter(banner -> banner.siteType() == siteType)
+            .filter(banner -> banner.position() == position)
+            .filter(CmsBanner::enabled)
+            .filter(banner -> banner.startTime() == null || !banner.startTime().isAfter(effectiveAt))
+            .filter(banner -> banner.endTime() == null || !banner.endTime().isBefore(effectiveAt))
+            .sorted(Comparator.comparingInt(CmsBanner::sortNo).thenComparingLong(CmsBanner::id))
+            .toList();
     }
 
     public synchronized long createBanner(CreateCmsBanner command) {
@@ -486,6 +502,18 @@ public class LocalCmsStore {
         return Optional.ofNullable(friendLinks.get(id));
     }
 
+    public synchronized List<CmsFriendLink> findEnabledFriendLinks(
+        SiteScope siteType,
+        int limit
+    ) {
+        return friendLinks.values().stream()
+            .filter(link -> link.siteType() == SiteScope.GLOBAL || link.siteType() == siteType)
+            .filter(CmsFriendLink::enabled)
+            .sorted(Comparator.comparingInt(CmsFriendLink::sortNo).thenComparingLong(CmsFriendLink::id))
+            .limit(limit)
+            .toList();
+    }
+
     public synchronized long createFriendLink(CreateCmsFriendLink command) {
         long id = friendLinkIdSequence.incrementAndGet();
         LocalDateTime now = LocalDateTime.now();
@@ -576,6 +604,30 @@ public class LocalCmsStore {
 
     public synchronized Optional<CmsContent> findContent(long id) {
         return Optional.ofNullable(contents.get(id)).map(this::withAttachments);
+    }
+
+    public synchronized List<CmsContent> findPublishedContents(
+        long columnId,
+        SiteType siteType,
+        LocalDateTime publishedAt,
+        int limit
+    ) {
+        return publicContents(siteType, publishedAt)
+            .filter(content -> content.columnId() == columnId)
+            .limit(limit)
+            .toList();
+    }
+
+    public synchronized List<CmsContent> findPublishedGallery(
+        SiteType siteType,
+        LocalDateTime publishedAt,
+        int limit
+    ) {
+        return publicContents(siteType, publishedAt)
+            .filter(CmsContent::recommendFlag)
+            .filter(content -> content.coverUrl() != null && !content.coverUrl().isBlank())
+            .limit(limit)
+            .toList();
     }
 
     public synchronized long createContent(CreateCmsContent command) {
@@ -932,6 +984,24 @@ public class LocalCmsStore {
             link.createdAt(),
             LocalDateTime.now()
         );
+    }
+
+    private Stream<CmsContent> publicContents(
+        SiteType siteType,
+        LocalDateTime publishedAt
+    ) {
+        return contents.values().stream()
+            .filter(content -> content.siteType() == siteType)
+            .filter(content -> content.status() == ContentStatus.PUBLISHED)
+            .filter(content -> content.publishAt() != null && !content.publishAt().isAfter(publishedAt))
+            .filter(content -> {
+                CmsColumn column = columns.get(content.columnId());
+                return column != null && column.siteType() == siteType && column.enabled();
+            })
+            .sorted(Comparator.comparing(CmsContent::topFlag).reversed()
+                .thenComparingInt(CmsContent::sortNo)
+                .thenComparing(CmsContent::publishAt, Comparator.reverseOrder())
+                .thenComparing(CmsContent::id, Comparator.reverseOrder()));
     }
 
     private void replaceAttachments(long contentId, List<ContentAttachmentRequest> requests, LocalDateTime now) {

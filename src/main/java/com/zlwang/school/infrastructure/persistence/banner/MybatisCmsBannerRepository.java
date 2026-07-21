@@ -10,6 +10,7 @@ import com.zlwang.school.modules.banner.repository.CmsBannerRepository;
 import com.zlwang.school.modules.banner.repository.CreateCmsBanner;
 import com.zlwang.school.modules.banner.repository.UpdateCmsBanner;
 import com.zlwang.school.modules.template.model.SiteType;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.context.annotation.Profile;
@@ -56,6 +57,17 @@ public class MybatisCmsBannerRepository implements CmsBannerRepository {
     @Override
     public Optional<CmsBanner> findById(long id) {
         return Optional.ofNullable(cmsBannerMapper.findById(id)).map(this::toBanner);
+    }
+
+    @Override
+    public List<CmsBanner> findActive(
+        SiteType siteType,
+        BannerPosition position,
+        LocalDateTime effectiveAt
+    ) {
+        return cmsBannerMapper.findActive(siteType.name(), position.name(), effectiveAt).stream()
+            .map(this::toBanner)
+            .toList();
     }
 
     @Override

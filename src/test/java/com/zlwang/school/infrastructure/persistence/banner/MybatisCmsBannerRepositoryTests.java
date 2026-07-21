@@ -61,6 +61,22 @@ class MybatisCmsBannerRepositoryTests {
     }
 
     @Test
+    void activeQueryUsesSitePositionAndEffectiveTime() {
+        LocalDateTime effectiveAt = LocalDateTime.of(2026, 7, 20, 10, 0);
+        when(cmsBannerMapper.findActive("MAIN_SITE", "HOME", effectiveAt))
+            .thenReturn(List.of(row(effectiveAt)));
+
+        List<CmsBanner> banners = repository.findActive(
+            SiteType.MAIN_SITE,
+            BannerPosition.HOME,
+            effectiveAt
+        );
+
+        assertThat(banners).singleElement()
+            .satisfies(banner -> assertThat(banner.title()).isEqualTo("迎新专题"));
+    }
+
+    @Test
     void createWritesAllFieldsAndReturnsGeneratedId() {
         LocalDateTime start = LocalDateTime.of(2026, 8, 1, 8, 0);
         LocalDateTime end = LocalDateTime.of(2026, 8, 31, 18, 0);

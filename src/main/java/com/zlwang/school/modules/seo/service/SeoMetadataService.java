@@ -74,6 +74,16 @@ public class SeoMetadataService {
         );
     }
 
+    public SeoMetadata resolvePage(SiteType siteType, String canonicalPath) {
+        Map<String, String> defaults = defaults(siteType);
+        return new SeoMetadata(
+            first(defaults.get(DEFAULT_TITLE)),
+            first(defaults.get(DEFAULT_KEYWORDS)),
+            first(defaults.get(DEFAULT_DESCRIPTION)),
+            normalizePath(canonicalPath)
+        );
+    }
+
     private Map<String, String> defaults(SiteType siteType) {
         SiteScope scope = SiteScope.valueOf(siteType.name());
         Map<String, String> values = new LinkedHashMap<>();

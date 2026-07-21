@@ -68,6 +68,21 @@ public interface CmsFriendLinkMapper {
         """)
     CmsFriendLinkRow findById(@Param("id") long id);
 
+    @Select("""
+        SELECT id, site_type, name, link_url, logo_url, sort_no, enabled, remark,
+               created_at, updated_at
+        FROM cms_friend_link
+        WHERE site_type IN ('GLOBAL', #{siteType})
+          AND enabled = 1
+          AND deleted = 0
+        ORDER BY sort_no, id
+        LIMIT #{limit}
+        """)
+    List<CmsFriendLinkRow> findEnabledForSite(
+        @Param("siteType") String siteType,
+        @Param("limit") int limit
+    );
+
     @Insert("""
         INSERT INTO cms_friend_link (
           site_type, name, link_url, logo_url, sort_no, enabled, remark,

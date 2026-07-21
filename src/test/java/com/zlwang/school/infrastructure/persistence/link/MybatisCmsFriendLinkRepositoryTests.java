@@ -57,6 +57,17 @@ class MybatisCmsFriendLinkRepositoryTests {
     }
 
     @Test
+    void enabledSiteQueryIncludesMappedPublicRows() {
+        LocalDateTime now = LocalDateTime.now();
+        when(cmsFriendLinkMapper.findEnabledForSite("MAIN_SITE", 20))
+            .thenReturn(List.of(row(now)));
+
+        assertThat(repository.findEnabledForSite(SiteScope.MAIN_SITE, 20))
+            .singleElement()
+            .satisfies(link -> assertThat(link.name()).isEqualTo("教育部"));
+    }
+
+    @Test
     void createsAndUpdatesAllFields() {
         CreateCmsFriendLink create = new CreateCmsFriendLink(
             SiteScope.MAIN_SITE,

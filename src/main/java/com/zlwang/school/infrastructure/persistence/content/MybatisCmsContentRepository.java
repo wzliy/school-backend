@@ -70,6 +70,32 @@ public class MybatisCmsContentRepository implements CmsContentRepository {
     }
 
     @Override
+    public List<CmsContent> findPublishedByColumn(
+        long columnId,
+        SiteType siteType,
+        LocalDateTime publishedAt,
+        int limit
+    ) {
+        return cmsContentMapper.findPublishedByColumn(
+            columnId,
+            siteType.name(),
+            publishedAt,
+            limit
+        ).stream().map(row -> toContent(row, List.of())).toList();
+    }
+
+    @Override
+    public List<CmsContent> findPublishedGallery(
+        SiteType siteType,
+        LocalDateTime publishedAt,
+        int limit
+    ) {
+        return cmsContentMapper.findPublishedGallery(siteType.name(), publishedAt, limit).stream()
+            .map(row -> toContent(row, List.of()))
+            .toList();
+    }
+
+    @Override
     @Transactional
     public long create(CreateCmsContent command) {
         cmsContentMapper.insertContent(writeRow(command));

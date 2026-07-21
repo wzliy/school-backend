@@ -9,6 +9,7 @@ import com.zlwang.school.modules.content.repository.CreateCmsContent;
 import com.zlwang.school.modules.content.repository.UpdateCmsContent;
 import com.zlwang.school.modules.template.model.SiteType;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
@@ -38,6 +39,25 @@ public class LocalCmsContentRepository implements CmsContentRepository {
     @Override
     public Optional<CmsContent> findById(long id) {
         return localCmsStore.findContent(id);
+    }
+
+    @Override
+    public List<CmsContent> findPublishedByColumn(
+        long columnId,
+        SiteType siteType,
+        LocalDateTime publishedAt,
+        int limit
+    ) {
+        return localCmsStore.findPublishedContents(columnId, siteType, publishedAt, limit);
+    }
+
+    @Override
+    public List<CmsContent> findPublishedGallery(
+        SiteType siteType,
+        LocalDateTime publishedAt,
+        int limit
+    ) {
+        return localCmsStore.findPublishedGallery(siteType, publishedAt, limit);
     }
 
     @Override

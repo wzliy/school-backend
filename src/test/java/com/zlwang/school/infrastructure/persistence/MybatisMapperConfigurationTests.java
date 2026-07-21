@@ -49,6 +49,9 @@ class MybatisMapperConfigurationTests {
             CmsBannerMapper.class.getName() + ".findBanners"
         )).isTrue();
         assertThat(configuration.hasStatement(
+            CmsBannerMapper.class.getName() + ".findActive"
+        )).isTrue();
+        assertThat(configuration.hasStatement(
             SystemRoleMapper.class.getName() + ".insertRolePermissions"
         )).isTrue();
         assertThat(configuration.hasStatement(
@@ -61,10 +64,19 @@ class MybatisMapperConfigurationTests {
             CmsContentMapper.class.getName() + ".findContents"
         )).isTrue();
         assertThat(configuration.hasStatement(
+            CmsContentMapper.class.getName() + ".findPublishedByColumn"
+        )).isTrue();
+        assertThat(configuration.hasStatement(
+            CmsContentMapper.class.getName() + ".findPublishedGallery"
+        )).isTrue();
+        assertThat(configuration.hasStatement(
             CmsMediaMapper.class.getName() + ".findMedia"
         )).isTrue();
         assertThat(configuration.hasStatement(
             CmsFriendLinkMapper.class.getName() + ".findFriendLinks"
+        )).isTrue();
+        assertThat(configuration.hasStatement(
+            CmsFriendLinkMapper.class.getName() + ".findEnabledForSite"
         )).isTrue();
         assertThat(configuration.hasStatement(
             OperationLogMapper.class.getName() + ".findLogs"

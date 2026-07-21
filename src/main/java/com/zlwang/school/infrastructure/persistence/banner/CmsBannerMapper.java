@@ -1,5 +1,6 @@
 package com.zlwang.school.infrastructure.persistence.banner;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
@@ -79,6 +80,25 @@ public interface CmsBannerMapper {
           AND deleted = 0
         """)
     CmsBannerRow findById(@Param("id") long id);
+
+    @Select("""
+        SELECT id, site_type, position, title, subtitle, image_url, mobile_image_url,
+               link_type, link_ref_id, link_url, link_target, sort_no, enabled,
+               start_time, end_time, remark, created_at, updated_at
+        FROM cms_banner
+        WHERE site_type = #{siteType}
+          AND position = #{position}
+          AND enabled = 1
+          AND deleted = 0
+          AND (start_time IS NULL OR start_time &lt;= #{effectiveAt})
+          AND (end_time IS NULL OR end_time &gt;= #{effectiveAt})
+        ORDER BY sort_no, id
+        """)
+    List<CmsBannerRow> findActive(
+        @Param("siteType") String siteType,
+        @Param("position") String position,
+        @Param("effectiveAt") LocalDateTime effectiveAt
+    );
 
     @Insert("""
         INSERT INTO cms_banner (

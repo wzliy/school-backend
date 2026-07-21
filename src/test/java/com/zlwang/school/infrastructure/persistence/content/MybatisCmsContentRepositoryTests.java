@@ -87,6 +87,31 @@ class MybatisCmsContentRepositoryTests {
     }
 
     @Test
+    void publicQueriesMapPublishedContentWithoutAttachments() {
+        LocalDateTime publishedAt = LocalDateTime.of(2026, 7, 20, 10, 0);
+        CmsContentRow row = row(publishedAt);
+        when(cmsContentMapper.findPublishedByColumn(101L, "MAIN_SITE", publishedAt, 6))
+            .thenReturn(List.of(row));
+        when(cmsContentMapper.findPublishedGallery("MAIN_SITE", publishedAt, 8))
+            .thenReturn(List.of(row));
+
+        assertThat(repository.findPublishedByColumn(
+            101L,
+            SiteType.MAIN_SITE,
+            publishedAt,
+            6
+        )).singleElement().satisfies(content -> {
+            assertThat(content.status()).isEqualTo(ContentStatus.PUBLISHED);
+            assertThat(content.attachments()).isEmpty();
+        });
+        assertThat(repository.findPublishedGallery(
+            SiteType.MAIN_SITE,
+            publishedAt,
+            8
+        )).hasSize(1);
+    }
+
+    @Test
     void createWritesContentThenAttachmentsWithGeneratedId() {
         LocalDateTime publishAt = LocalDateTime.of(2026, 7, 17, 10, 0);
         CreateCmsContent command = new CreateCmsContent(
@@ -173,6 +198,34 @@ class MybatisCmsContentRepositoryTests {
             1024L,
             AttachmentFileType.DOCUMENT,
             10
+        );
+    }
+
+    private CmsContentRow row(LocalDateTime now) {
+        return new CmsContentRow(
+            11L,
+            101L,
+            "新闻中心",
+            "MAIN_SITE",
+            "校园新闻",
+            null,
+            "摘要",
+            "<p>正文</p>",
+            "/uploads/news.jpg",
+            null,
+            null,
+            now.minusHours(1),
+            "PUBLISHED",
+            0,
+            1,
+            10,
+            20L,
+            null,
+            null,
+            null,
+            "{}",
+            now,
+            now
         );
     }
 }

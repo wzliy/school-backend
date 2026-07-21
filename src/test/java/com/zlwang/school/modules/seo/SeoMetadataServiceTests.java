@@ -95,6 +95,18 @@ class SeoMetadataServiceTests {
         assertThat(metadata.canonicalPath()).isEqualTo("/columns/101");
     }
 
+    @Test
+    void pageSeoUsesSiteDefaultsAndNormalizesCanonicalPath() {
+        when(cmsSiteConfigRepository.findAll(SiteScope.MAIN_SITE)).thenReturn(defaults());
+
+        SeoMetadata metadata = service.resolvePage(SiteType.MAIN_SITE, " / ");
+
+        assertThat(metadata.title()).isEqualTo("默认标题");
+        assertThat(metadata.keywords()).isEqualTo("默认关键词");
+        assertThat(metadata.description()).isEqualTo("默认描述");
+        assertThat(metadata.canonicalPath()).isEqualTo("/");
+    }
+
     private CmsColumn column(
         String routePath,
         String seoTitle,

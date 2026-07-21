@@ -5,6 +5,7 @@ import com.zlwang.school.modules.content.model.CmsContent;
 import com.zlwang.school.modules.content.model.ContentStatus;
 import com.zlwang.school.modules.template.model.SiteType;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface CmsContentRepository {
@@ -19,6 +20,19 @@ public interface CmsContentRepository {
     );
 
     Optional<CmsContent> findById(long id);
+
+    List<CmsContent> findPublishedByColumn(
+        long columnId,
+        SiteType siteType,
+        LocalDateTime publishedAt,
+        int limit
+    );
+
+    List<CmsContent> findPublishedGallery(
+        SiteType siteType,
+        LocalDateTime publishedAt,
+        int limit
+    );
 
     long create(CreateCmsContent command);
 

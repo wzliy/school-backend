@@ -53,6 +53,13 @@ public class MybatisCmsFriendLinkRepository implements CmsFriendLinkRepository {
     }
 
     @Override
+    public List<CmsFriendLink> findEnabledForSite(SiteScope siteType, int limit) {
+        return cmsFriendLinkMapper.findEnabledForSite(siteType.name(), limit).stream()
+            .map(this::toFriendLink)
+            .toList();
+    }
+
+    @Override
     @Transactional
     public long create(CreateCmsFriendLink command) {
         cmsFriendLinkMapper.insert(writeRow(command));

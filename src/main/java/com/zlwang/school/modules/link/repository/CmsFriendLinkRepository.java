@@ -19,6 +19,8 @@ public interface CmsFriendLinkRepository {
 
     Optional<CmsFriendLink> findById(long id);
 
+    List<CmsFriendLink> findEnabledForSite(SiteScope siteType, int limit);
+
     long create(CreateCmsFriendLink command);
 
     boolean update(UpdateCmsFriendLink command);

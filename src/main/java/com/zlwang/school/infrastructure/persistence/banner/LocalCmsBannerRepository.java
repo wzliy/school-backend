@@ -10,6 +10,7 @@ import com.zlwang.school.modules.banner.repository.CmsBannerRepository;
 import com.zlwang.school.modules.banner.repository.CreateCmsBanner;
 import com.zlwang.school.modules.banner.repository.UpdateCmsBanner;
 import com.zlwang.school.modules.template.model.SiteType;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.context.annotation.Profile;
@@ -40,6 +41,15 @@ public class LocalCmsBannerRepository implements CmsBannerRepository {
     @Override
     public Optional<CmsBanner> findById(long id) {
         return localCmsStore.findBanner(id);
+    }
+
+    @Override
+    public List<CmsBanner> findActive(
+        SiteType siteType,
+        BannerPosition position,
+        LocalDateTime effectiveAt
+    ) {
+        return localCmsStore.findActiveBanners(siteType, position, effectiveAt);
     }
 
     @Override

@@ -40,6 +40,11 @@ public class LocalCmsFriendLinkRepository implements CmsFriendLinkRepository {
     }
 
     @Override
+    public List<CmsFriendLink> findEnabledForSite(SiteScope siteType, int limit) {
+        return localCmsStore.findEnabledFriendLinks(siteType, limit);
+    }
+
+    @Override
     public long create(CreateCmsFriendLink command) {
         return localCmsStore.createFriendLink(command);
     }

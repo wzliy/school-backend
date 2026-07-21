@@ -6,6 +6,7 @@ import com.zlwang.school.modules.banner.model.BannerLinkType;
 import com.zlwang.school.modules.banner.model.BannerPosition;
 import com.zlwang.school.modules.banner.model.CmsBanner;
 import com.zlwang.school.modules.template.model.SiteType;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +22,12 @@ public interface CmsBannerRepository {
     );
 
     Optional<CmsBanner> findById(long id);
+
+    List<CmsBanner> findActive(
+        SiteType siteType,
+        BannerPosition position,
+        LocalDateTime effectiveAt
+    );
 
     long create(CreateCmsBanner command);
 

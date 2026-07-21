@@ -1521,6 +1521,36 @@ CONTENT_SELECT  内容选择
 
 `LINK` 栏目直接使用 `external_url` 跳转，不绑定页面模板。模板注册表提供的校验规则和选项也是后端保存校验的输入，前端隐藏字段或绕过控件不能绕过服务端白名单。
 
+#### 14.7.3 公开页面聚合契约
+
+主站首页使用 `GET /api/portal/pages/HOME`，招生就业专题首页可使用 `GET /api/portal/pages/RECRUIT_HOME` 或兼容入口 `GET /api/portal/recruit/home`。两个接口均允许匿名访问，页面编码由后端注册表唯一映射到站点和生效模板，不接受客户端另传 `siteType` 或模板编码。
+
+页面响应根对象固定包含：
+
+| 字段 | 说明 |
+| --- | --- |
+| `pageCode` | `HOME` 或 `RECRUIT_HOME` |
+| `templateKey` | 页面当前生效模板，与页面注册表一致 |
+| `siteType` | 页面所属站点 |
+| `siteConfig` | `GLOBAL` 与当前站点配置合并结果，站点配置覆盖同名全局配置 |
+| `seo` | `SeoMetadataService` 解析的页面默认 SEO 和 canonical 路径 |
+| `sections` | 按 `sortNo`、`id` 排序的已启用区块 |
+
+每个区块固定返回 `sectionCode`、`sectionName`、`sectionType`、`sourceColumn`、`displayCount`、`displayStyle`、`config`、`sortNo`，并同时提供 `banners`、`contents`、`links`、`friendLinks` 和 `contact` 五类稳定数据槽。当前区块未使用的数据槽返回空数组或空对象，不返回 `null`，前端只需按 `sectionType` 选择对应数据槽。
+
+区块数据来源固定如下：
+
+| 区块类型 | 聚合来源与公开过滤 |
+| --- | --- |
+| `HERO_BANNER` | 页面同名 Banner 位；只返回已启用且当前有效，并且内部内容或栏目引用仍可公开访问的数据 |
+| `CONTENT_FEED` | `dataSourceColumnId` 指定的同站点启用栏目；只返回发布时间不晚于当前时间的 `PUBLISHED` 内容 |
+| `QUICK_LINKS` | 当前站点已启用且 `navVisible = true` 的栏目，按栏目排序并应用展示数量 |
+| `IMAGE_GALLERY` | 当前站点已发布、已推荐且配置了封面的内容，按内容公开排序并应用展示数量 |
+| `FRIEND_LINKS` | `GLOBAL` 与当前站点作用域内已启用的友情链接 |
+| `CONTACT_INFO` | 合并后的站点配置；按 `showPhone`、`showEmail`、`showAddress` 控制返回字段 |
+
+若内容流的数据源栏目不存在、已停用或站点不匹配，聚合接口直接剔除该区块，避免把悬空配置暴露给前端。合法区块没有数据时仍保留区块元数据并返回空数据槽，保证空数据响应结构稳定。
+
 ### 14.8 SEO 数据与接口输出规则
 
 1. Portal API 复用 `SeoMetadataService`，按 5.7 节规则计算并返回 SEO 回退结果，不在控制器中重复实现。
