@@ -59,6 +59,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import org.springframework.context.annotation.Profile;
@@ -616,13 +617,50 @@ public class LocalCmsStore {
         List<CmsContent> matched = publicContents(siteType, publishedAt)
             .filter(content -> content.columnId() == columnId)
             .toList();
-        long offset = (pageNo - 1) * pageSize;
+        long offset = pageOffset(pageNo, pageSize);
         if (offset >= matched.size()) {
             return PageResult.of(List.of(), matched.size(), pageNo, pageSize);
         }
         int fromIndex = Math.toIntExact(offset);
         int toIndex = Math.min(matched.size(), Math.toIntExact(offset + pageSize));
         return PageResult.of(matched.subList(fromIndex, toIndex), matched.size(), pageNo, pageSize);
+    }
+
+    public synchronized PageResult<CmsContent> searchPublishedContents(
+        String keyword,
+        SiteType siteType,
+        Long columnId,
+        LocalDateTime publishedAt,
+        long pageNo,
+        long pageSize
+    ) {
+        String normalizedKeyword = keyword.toLowerCase(Locale.ROOT);
+        List<CmsContent> matched = publicContents(siteType, publishedAt)
+            .filter(content -> columnId == null || content.columnId() == columnId)
+            .filter(content -> content.title().toLowerCase(Locale.ROOT).contains(normalizedKeyword))
+            .sorted(Comparator.comparing(CmsContent::publishAt, Comparator.reverseOrder())
+                .thenComparing(CmsContent::id, Comparator.reverseOrder()))
+            .toList();
+        long offset = pageOffset(pageNo, pageSize);
+        if (offset >= matched.size()) {
+            return PageResult.of(List.of(), matched.size(), pageNo, pageSize);
+        }
+        int fromIndex = Math.toIntExact(offset);
+        int toIndex = Math.min(matched.size(), Math.toIntExact(offset + pageSize));
+        return PageResult.of(matched.subList(fromIndex, toIndex), matched.size(), pageNo, pageSize);
+    }
+
+    public synchronized OptionalLong incrementPublishedContentViewCount(
+        long id,
+        LocalDateTime publishedAt
+    ) {
+        CmsContent content = contents.get(id);
+        if (content == null || !publicContent(content, publishedAt)) {
+            return OptionalLong.empty();
+        }
+        long viewCount = content.viewCount() + 1;
+        contents.put(id, withViewCount(content, viewCount));
+        return OptionalLong.of(viewCount);
     }
 
     public synchronized List<CmsContent> findPublishedContents(
@@ -967,6 +1005,35 @@ public class LocalCmsStore {
         );
     }
 
+    private CmsContent withViewCount(CmsContent content, long viewCount) {
+        return new CmsContent(
+            content.id(),
+            content.columnId(),
+            content.columnName(),
+            content.siteType(),
+            content.title(),
+            content.subtitle(),
+            content.summary(),
+            content.contentHtml(),
+            content.coverUrl(),
+            content.source(),
+            content.author(),
+            content.publishAt(),
+            content.status(),
+            content.topFlag(),
+            content.recommendFlag(),
+            content.sortNo(),
+            viewCount,
+            content.seoTitle(),
+            content.seoKeywords(),
+            content.seoDescription(),
+            content.extensionData(),
+            List.of(),
+            content.createdAt(),
+            LocalDateTime.now()
+        );
+    }
+
     private CmsBanner copyBanner(CmsBanner banner, int sortNo, boolean enabled) {
         return new CmsBanner(
             banner.id(),
@@ -1011,16 +1078,28 @@ public class LocalCmsStore {
     ) {
         return contents.values().stream()
             .filter(content -> content.siteType() == siteType)
-            .filter(content -> content.status() == ContentStatus.PUBLISHED)
-            .filter(content -> content.publishAt() != null && !content.publishAt().isAfter(publishedAt))
-            .filter(content -> {
-                CmsColumn column = columns.get(content.columnId());
-                return column != null && column.siteType() == siteType && column.enabled();
-            })
+            .filter(content -> publicContent(content, publishedAt))
             .sorted(Comparator.comparing(CmsContent::topFlag).reversed()
                 .thenComparingInt(CmsContent::sortNo)
                 .thenComparing(CmsContent::publishAt, Comparator.reverseOrder())
                 .thenComparing(CmsContent::id, Comparator.reverseOrder()));
+    }
+
+    private boolean publicContent(CmsContent content, LocalDateTime publishedAt) {
+        CmsColumn column = columns.get(content.columnId());
+        return content.status() == ContentStatus.PUBLISHED
+            && content.publishAt() != null
+            && !content.publishAt().isAfter(publishedAt)
+            && column != null
+            && column.siteType() == content.siteType()
+            && column.enabled();
+    }
+
+    private long pageOffset(long pageNo, long pageSize) {
+        long pageIndex = pageNo - 1;
+        return pageIndex > Long.MAX_VALUE / pageSize
+            ? Long.MAX_VALUE
+            : pageIndex * pageSize;
     }
 
     private void replaceAttachments(long contentId, List<ContentAttachmentRequest> requests, LocalDateTime now) {

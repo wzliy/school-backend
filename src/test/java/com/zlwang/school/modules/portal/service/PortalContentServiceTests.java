@@ -14,8 +14,10 @@ import com.zlwang.school.modules.content.model.ContentAttachment;
 import com.zlwang.school.modules.content.model.ContentStatus;
 import com.zlwang.school.modules.content.repository.CmsContentRepository;
 import com.zlwang.school.modules.portal.dto.PortalContentPageQuery;
+import com.zlwang.school.modules.portal.dto.PortalSearchQuery;
 import com.zlwang.school.modules.portal.vo.PortalContentAttachmentResponse;
 import com.zlwang.school.modules.portal.vo.PortalContentSummaryResponse;
+import com.zlwang.school.modules.portal.vo.PortalSearchResponse;
 import com.zlwang.school.modules.seo.model.SeoMetadata;
 import com.zlwang.school.modules.seo.service.SeoMetadataService;
 import com.zlwang.school.modules.template.model.ColumnType;
@@ -25,6 +27,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -127,6 +130,55 @@ class PortalContentServiceTests {
         assertThatThrownBy(() -> service.findContent(900L))
             .isInstanceOf(BusinessException.class)
             .hasMessage("内容不存在或不可访问：900");
+    }
+
+    @Test
+    void searchTrimsKeywordAppliesSiteColumnAndReturnsPageSeo() {
+        PortalSearchQuery query = new PortalSearchQuery();
+        query.setKeyword("  校园  ");
+        query.setSiteType(SiteType.MAIN_SITE);
+        query.setColumnId(101L);
+        query.setPageNo(2);
+        query.setPageSize(5);
+        CmsColumn column = column(true);
+        CmsContent content = content(ContentStatus.PUBLISHED, NOW.minusMinutes(1));
+        SeoMetadata seo = new SeoMetadata("高校官网", "高校", "官网", "/search");
+        when(cmsColumnRepository.findById(101L)).thenReturn(Optional.of(column));
+        when(portalSiteService.publicColumn(column, SiteType.MAIN_SITE)).thenReturn(true);
+        when(portalSiteService.currentTime()).thenReturn(NOW);
+        when(cmsContentRepository.searchPublished(
+            "校园",
+            SiteType.MAIN_SITE,
+            101L,
+            NOW,
+            2,
+            5
+        )).thenReturn(PageResult.of(List.of(content), 6, 2, 5));
+        when(seoMetadataService.resolvePage(SiteType.MAIN_SITE, "/search"))
+            .thenReturn(seo);
+
+        PortalSearchResponse response = service.search(query);
+
+        assertThat(response.keyword()).isEqualTo("校园");
+        assertThat(response.total()).isEqualTo(6);
+        assertThat(response.seo()).isEqualTo(seo);
+        assertThat(response.records()).singleElement()
+            .satisfies(item -> assertThat(item.id()).isEqualTo(900L));
+    }
+
+    @Test
+    void viewCountOnlyIncrementsContentAcceptedByRepositoryPublicGuard() {
+        when(portalSiteService.currentTime()).thenReturn(NOW);
+        when(cmsContentRepository.incrementPublishedViewCount(900L, NOW))
+            .thenReturn(OptionalLong.of(21));
+
+        assertThat(service.incrementViewCount(900L).viewCount()).isEqualTo(21);
+
+        when(cmsContentRepository.incrementPublishedViewCount(901L, NOW))
+            .thenReturn(OptionalLong.empty());
+        assertThatThrownBy(() -> service.incrementViewCount(901L))
+            .isInstanceOf(BusinessException.class)
+            .hasMessage("内容不存在或不可访问：901");
     }
 
     private CmsColumn column(boolean enabled) {

@@ -143,6 +143,69 @@ public interface CmsContentMapper {
     );
 
     @Select("""
+        <script>
+        SELECT COUNT(*)
+        FROM cms_content cc
+        INNER JOIN cms_column c
+          ON c.id = cc.column_id
+         AND c.site_type = #{siteType}
+         AND c.enabled = 1
+         AND c.deleted = 0
+        WHERE cc.site_type = #{siteType}
+          AND cc.status = 'PUBLISHED'
+          AND cc.publish_at IS NOT NULL
+          AND cc.publish_at &lt;= #{publishedAt}
+          AND INSTR(cc.title, #{keyword}) &gt; 0
+          AND cc.deleted = 0
+        <if test='columnId != null'>
+          AND cc.column_id = #{columnId}
+        </if>
+        </script>
+        """)
+    long countPublishedSearch(
+        @Param("keyword") String keyword,
+        @Param("siteType") String siteType,
+        @Param("columnId") Long columnId,
+        @Param("publishedAt") LocalDateTime publishedAt
+    );
+
+    @Select("""
+        <script>
+        SELECT cc.id, cc.column_id, c.column_name, cc.site_type, cc.title, cc.subtitle,
+               cc.summary, cc.content_html, cc.cover_url, cc.source, cc.author,
+               cc.publish_at, cc.status, cc.top_flag, cc.recommend_flag, cc.sort_no,
+               cc.view_count, cc.seo_title, cc.seo_keywords, cc.seo_description,
+               CAST(cc.extension_data AS CHAR) AS extension_data,
+               cc.created_at, cc.updated_at
+        FROM cms_content cc
+        INNER JOIN cms_column c
+          ON c.id = cc.column_id
+         AND c.site_type = #{siteType}
+         AND c.enabled = 1
+         AND c.deleted = 0
+        WHERE cc.site_type = #{siteType}
+          AND cc.status = 'PUBLISHED'
+          AND cc.publish_at IS NOT NULL
+          AND cc.publish_at &lt;= #{publishedAt}
+          AND INSTR(cc.title, #{keyword}) &gt; 0
+          AND cc.deleted = 0
+        <if test='columnId != null'>
+          AND cc.column_id = #{columnId}
+        </if>
+        ORDER BY cc.publish_at DESC, cc.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+        </script>
+        """)
+    List<CmsContentRow> findPublishedSearch(
+        @Param("keyword") String keyword,
+        @Param("siteType") String siteType,
+        @Param("columnId") Long columnId,
+        @Param("publishedAt") LocalDateTime publishedAt,
+        @Param("offset") long offset,
+        @Param("limit") long limit
+    );
+
+    @Select("""
         SELECT cc.id, cc.column_id, c.column_name, cc.site_type, cc.title, cc.subtitle,
                cc.summary, cc.content_html, cc.cover_url, cc.source, cc.author,
                cc.publish_at, cc.status, cc.top_flag, cc.recommend_flag, cc.sort_no,
@@ -210,6 +273,33 @@ public interface CmsContentMapper {
         ORDER BY sort_no, id
         """)
     List<CmsContentAttachmentRow> findAttachments(@Param("contentId") long contentId);
+
+    @Update("""
+        UPDATE cms_content cc
+        INNER JOIN cms_column c
+          ON c.id = cc.column_id
+         AND c.site_type = cc.site_type
+         AND c.enabled = 1
+         AND c.deleted = 0
+        SET cc.view_count = cc.view_count + 1
+        WHERE cc.id = #{id}
+          AND cc.status = 'PUBLISHED'
+          AND cc.publish_at IS NOT NULL
+          AND cc.publish_at &lt;= #{publishedAt}
+          AND cc.deleted = 0
+        """)
+    int incrementPublishedViewCount(
+        @Param("id") long id,
+        @Param("publishedAt") LocalDateTime publishedAt
+    );
+
+    @Select("""
+        SELECT view_count
+        FROM cms_content
+        WHERE id = #{id}
+          AND deleted = 0
+        """)
+    Long findViewCount(@Param("id") long id);
 
     @Insert("""
         INSERT INTO cms_content (

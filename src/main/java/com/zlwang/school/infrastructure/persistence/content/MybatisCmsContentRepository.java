@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,6 +91,46 @@ public class MybatisCmsContentRepository implements CmsContentRepository {
             pageSize
         ).stream().map(row -> toContent(row, List.of())).toList();
         return PageResult.of(records, total, pageNo, pageSize);
+    }
+
+    @Override
+    public PageResult<CmsContent> searchPublished(
+        String keyword,
+        SiteType siteType,
+        Long columnId,
+        LocalDateTime publishedAt,
+        long pageNo,
+        long pageSize
+    ) {
+        String site = siteType.name();
+        long total = cmsContentMapper.countPublishedSearch(
+            keyword,
+            site,
+            columnId,
+            publishedAt
+        );
+        if (total == 0) {
+            return PageResult.empty(pageNo, pageSize);
+        }
+        List<CmsContent> records = cmsContentMapper.findPublishedSearch(
+            keyword,
+            site,
+            columnId,
+            publishedAt,
+            pageOffset(pageNo, pageSize),
+            pageSize
+        ).stream().map(row -> toContent(row, List.of())).toList();
+        return PageResult.of(records, total, pageNo, pageSize);
+    }
+
+    @Override
+    @Transactional
+    public OptionalLong incrementPublishedViewCount(long id, LocalDateTime publishedAt) {
+        if (cmsContentMapper.incrementPublishedViewCount(id, publishedAt) == 0) {
+            return OptionalLong.empty();
+        }
+        Long viewCount = cmsContentMapper.findViewCount(id);
+        return viewCount == null ? OptionalLong.empty() : OptionalLong.of(viewCount);
     }
 
     @Override
@@ -303,5 +344,12 @@ public class MybatisCmsContentRepository implements CmsContentRepository {
 
     private int flag(boolean value) {
         return value ? 1 : 0;
+    }
+
+    private long pageOffset(long pageNo, long pageSize) {
+        long pageIndex = pageNo - 1;
+        return pageIndex > Long.MAX_VALUE / pageSize
+            ? Long.MAX_VALUE
+            : pageIndex * pageSize;
     }
 }

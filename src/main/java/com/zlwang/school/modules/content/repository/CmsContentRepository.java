@@ -7,6 +7,7 @@ import com.zlwang.school.modules.template.model.SiteType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 public interface CmsContentRepository {
 
@@ -28,6 +29,17 @@ public interface CmsContentRepository {
         long pageNo,
         long pageSize
     );
+
+    PageResult<CmsContent> searchPublished(
+        String keyword,
+        SiteType siteType,
+        Long columnId,
+        LocalDateTime publishedAt,
+        long pageNo,
+        long pageSize
+    );
+
+    OptionalLong incrementPublishedViewCount(long id, LocalDateTime publishedAt);
 
     List<CmsContent> findPublishedByColumn(
         long columnId,

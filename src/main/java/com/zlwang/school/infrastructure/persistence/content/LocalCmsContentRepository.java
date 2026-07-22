@@ -11,6 +11,7 @@ import com.zlwang.school.modules.template.model.SiteType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
@@ -56,6 +57,30 @@ public class LocalCmsContentRepository implements CmsContentRepository {
             pageNo,
             pageSize
         );
+    }
+
+    @Override
+    public PageResult<CmsContent> searchPublished(
+        String keyword,
+        SiteType siteType,
+        Long columnId,
+        LocalDateTime publishedAt,
+        long pageNo,
+        long pageSize
+    ) {
+        return localCmsStore.searchPublishedContents(
+            keyword,
+            siteType,
+            columnId,
+            publishedAt,
+            pageNo,
+            pageSize
+        );
+    }
+
+    @Override
+    public OptionalLong incrementPublishedViewCount(long id, LocalDateTime publishedAt) {
+        return localCmsStore.incrementPublishedContentViewCount(id, publishedAt);
     }
 
     @Override

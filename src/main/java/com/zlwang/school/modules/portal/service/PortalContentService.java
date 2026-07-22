@@ -9,10 +9,13 @@ import com.zlwang.school.modules.content.model.CmsContent;
 import com.zlwang.school.modules.content.model.ContentStatus;
 import com.zlwang.school.modules.content.repository.CmsContentRepository;
 import com.zlwang.school.modules.portal.dto.PortalContentPageQuery;
+import com.zlwang.school.modules.portal.dto.PortalSearchQuery;
 import com.zlwang.school.modules.portal.vo.PortalColumnDetailResponse;
 import com.zlwang.school.modules.portal.vo.PortalColumnTreeNodeResponse;
 import com.zlwang.school.modules.portal.vo.PortalContentDetailResponse;
 import com.zlwang.school.modules.portal.vo.PortalContentSummaryResponse;
+import com.zlwang.school.modules.portal.vo.PortalSearchResponse;
+import com.zlwang.school.modules.portal.vo.PortalViewCountResponse;
 import com.zlwang.school.modules.seo.service.SeoMetadataService;
 import com.zlwang.school.modules.template.model.SiteType;
 import java.time.LocalDateTime;
@@ -85,9 +88,54 @@ public class PortalContentService {
         );
     }
 
+    public PortalSearchResponse search(PortalSearchQuery query) {
+        String keyword = query.getKeyword().trim();
+        if (query.getColumnId() != null) {
+            requiredPublicColumn(query.getColumnId(), query.getSiteType());
+        }
+        PageResult<CmsContent> page = cmsContentRepository.searchPublished(
+            keyword,
+            query.getSiteType(),
+            query.getColumnId(),
+            portalSiteService.currentTime(),
+            query.getPageNo(),
+            query.getPageSize()
+        );
+        PageResult<PortalContentSummaryResponse> responsePage = PageResult.of(
+            page.records().stream().map(PortalContentSummaryResponse::from).toList(),
+            page.total(),
+            page.pageNo(),
+            page.pageSize()
+        );
+        return PortalSearchResponse.from(
+            keyword,
+            query.getSiteType(),
+            query.getColumnId(),
+            seoMetadataService.resolvePage(query.getSiteType(), "/search"),
+            responsePage
+        );
+    }
+
+    public PortalViewCountResponse incrementViewCount(long id) {
+        long viewCount = cmsContentRepository.incrementPublishedViewCount(
+            id,
+            portalSiteService.currentTime()
+        ).orElseThrow(() -> contentNotFound(id));
+        return new PortalViewCountResponse(id, viewCount);
+    }
+
     private CmsColumn requiredPublicColumn(long id) {
         return cmsColumnRepository.findById(id)
             .filter(CmsColumn::enabled)
+            .orElseThrow(() -> new BusinessException(
+                ErrorCode.NOT_FOUND,
+                "栏目不存在或不可访问：" + id
+            ));
+    }
+
+    private CmsColumn requiredPublicColumn(long id, SiteType siteType) {
+        return cmsColumnRepository.findById(id)
+            .filter(column -> portalSiteService.publicColumn(column, siteType))
             .orElseThrow(() -> new BusinessException(
                 ErrorCode.NOT_FOUND,
                 "栏目不存在或不可访问：" + id

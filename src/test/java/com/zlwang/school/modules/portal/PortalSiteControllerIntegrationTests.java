@@ -148,6 +148,14 @@ class PortalSiteControllerIntegrationTests {
                 .andExpect(jsonPath("$.data.total").value(1))
                 .andExpect(jsonPath("$.data.records.length()").value(0));
 
+            mockMvc.perform(put("/api/portal/contents/{id}/view-count", contentId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(contentId))
+                .andExpect(jsonPath("$.data.viewCount").value(1));
+            mockMvc.perform(put("/api/portal/contents/{id}/view-count", contentId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.viewCount").value(2));
+
             mockMvc.perform(get("/api/portal/contents/{id}", contentId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.contentHtml").value("<p>公开正文</p>"))
@@ -155,6 +163,7 @@ class PortalSiteControllerIntegrationTests {
                 .andExpect(jsonPath("$.data.attachments[0].fileName").value("公开附件.pdf"))
                 .andExpect(jsonPath("$.data.attachments[0].mediaId").doesNotExist())
                 .andExpect(jsonPath("$.data.seo.canonicalPath").value("/news/" + contentId))
+                .andExpect(jsonPath("$.data.viewCount").value(2))
                 .andExpect(jsonPath("$.data.status").doesNotExist())
                 .andExpect(jsonPath("$.data.createdAt").doesNotExist());
 
@@ -164,17 +173,88 @@ class PortalSiteControllerIntegrationTests {
 
             mockMvc.perform(get("/api/portal/contents/{id}", contentId))
                 .andExpect(status().isNotFound());
+            mockMvc.perform(put("/api/portal/contents/{id}/view-count", contentId))
+                .andExpect(status().isNotFound());
         } finally {
             mockMvc.perform(delete("/api/admin/contents/{id}", contentId)
                 .headers(auth(token)));
         }
     }
 
+    @Test
+    void publicSearchMatchesTitleAndFiltersFutureContentWithSeoFallback() throws Exception {
+        String token = login();
+        long visibleId = 0;
+        long futureId = 0;
+        try {
+            visibleId = createContent(
+                token,
+                "PortalSearchTitle 当前内容",
+                "PortalSearchSummaryOnly"
+            );
+            futureId = createContent(
+                token,
+                "PortalSearchTitle 未来内容",
+                "PortalSearchSummaryOnly"
+            );
+            mockMvc.perform(put("/api/admin/contents/{id}/publish", visibleId)
+                    .headers(auth(token))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{}"))
+                .andExpect(status().isOk());
+            mockMvc.perform(put("/api/admin/contents/{id}/publish", futureId)
+                    .headers(auth(token))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"publishAt\":\"2099-01-01T00:00:00\"}"))
+                .andExpect(status().isOk());
+
+            mockMvc.perform(get("/api/portal/search")
+                    .param("keyword", "PortalSearchTitle")
+                    .param("siteType", "MAIN_SITE")
+                    .param("columnId", "101")
+                    .param("pageSize", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.keyword").value("PortalSearchTitle"))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.records[0].id").value(visibleId))
+                .andExpect(jsonPath("$.data.seo.title").value("高校官网"))
+                .andExpect(jsonPath("$.data.seo.canonicalPath").value("/search"));
+
+            mockMvc.perform(get("/api/portal/search")
+                    .param("keyword", "PortalSearchSummaryOnly")
+                    .param("siteType", "MAIN_SITE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(0))
+                .andExpect(jsonPath("$.data.records.length()").value(0));
+
+            mockMvc.perform(get("/api/portal/search")
+                    .param("keyword", "PortalSearchTitle")
+                    .param("siteType", "MAIN_SITE")
+                    .param("columnId", "200"))
+                .andExpect(status().isNotFound());
+
+            mockMvc.perform(put("/api/portal/contents/{id}/view-count", futureId))
+                .andExpect(status().isNotFound());
+            mockMvc.perform(get("/api/portal/search")
+                    .param("keyword", " ")
+                    .param("siteType", "MAIN_SITE"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("A0400"));
+        } finally {
+            deleteContent(token, visibleId);
+            deleteContent(token, futureId);
+        }
+    }
+
     private long createContent(String token) throws Exception {
+        return createContent(token, "Portal 公开新闻", "公开摘要");
+    }
+
+    private long createContent(String token, String title, String summary) throws Exception {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("columnId", 101);
-        body.put("title", "Portal 公开新闻");
-        body.put("summary", "公开摘要");
+        body.put("title", title);
+        body.put("summary", summary);
         body.put("contentHtml", "<p>公开正文</p>");
         body.put("topFlag", false);
         body.put("recommendFlag", false);
@@ -196,6 +276,12 @@ class PortalSiteControllerIntegrationTests {
         return objectMapper.readTree(result.getResponse().getContentAsByteArray())
             .path("data")
             .longValue();
+    }
+
+    private void deleteContent(String token, long id) throws Exception {
+        if (id > 0) {
+            mockMvc.perform(delete("/api/admin/contents/{id}", id).headers(auth(token)));
+        }
     }
 
     private String login() throws Exception {

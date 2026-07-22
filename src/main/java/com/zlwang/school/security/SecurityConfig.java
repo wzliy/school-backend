@@ -54,6 +54,10 @@ public class SecurityConfig {
                     "/swagger-ui.html"
                 ).permitAll()
                 .requestMatchers(
+                    HttpMethod.PUT,
+                    "/api/portal/contents/*/view-count"
+                ).permitAll()
+                .requestMatchers(
                     HttpMethod.GET,
                     "/api/portal/**",
                     "/api/files/**",

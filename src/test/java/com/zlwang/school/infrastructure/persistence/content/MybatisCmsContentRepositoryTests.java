@@ -140,6 +140,51 @@ class MybatisCmsContentRepositoryTests {
     }
 
     @Test
+    void searchUsesPublishedCountSiteColumnAndDatabaseOffset() {
+        LocalDateTime publishedAt = LocalDateTime.of(2026, 7, 21, 10, 0);
+        when(cmsContentMapper.countPublishedSearch(
+            "校园",
+            "MAIN_SITE",
+            101L,
+            publishedAt
+        )).thenReturn(3L);
+        when(cmsContentMapper.findPublishedSearch(
+            "校园",
+            "MAIN_SITE",
+            101L,
+            publishedAt,
+            2L,
+            2L
+        )).thenReturn(List.of(row(publishedAt)));
+
+        PageResult<CmsContent> page = repository.searchPublished(
+            "校园",
+            SiteType.MAIN_SITE,
+            101L,
+            publishedAt,
+            2,
+            2
+        );
+
+        assertThat(page.total()).isEqualTo(3);
+        assertThat(page.records()).singleElement()
+            .satisfies(content -> assertThat(content.title()).isEqualTo("校园新闻"));
+    }
+
+    @Test
+    void viewCountIncrementReturnsLatestDatabaseValue() {
+        LocalDateTime publishedAt = LocalDateTime.of(2026, 7, 21, 10, 0);
+        when(cmsContentMapper.incrementPublishedViewCount(11L, publishedAt)).thenReturn(1);
+        when(cmsContentMapper.findViewCount(11L)).thenReturn(21L);
+
+        assertThat(repository.incrementPublishedViewCount(11L, publishedAt))
+            .hasValue(21L);
+
+        when(cmsContentMapper.incrementPublishedViewCount(12L, publishedAt)).thenReturn(0);
+        assertThat(repository.incrementPublishedViewCount(12L, publishedAt)).isEmpty();
+    }
+
+    @Test
     void createWritesContentThenAttachmentsWithGeneratedId() {
         LocalDateTime publishAt = LocalDateTime.of(2026, 7, 17, 10, 0);
         CreateCmsContent command = new CreateCmsContent(

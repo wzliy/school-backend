@@ -311,7 +311,7 @@ description  内容 SEO 描述 > 栏目 SEO 描述 > 内容摘要 > 站点默认
 
 ### 5.8 搜索
 
-首版搜索基于数据库查询实现，支持关键词匹配标题、按栏目筛选、发布时间排序和分页展示。后续如需全文检索，可接入 Elasticsearch 或 MySQL Fulltext。
+首版搜索基于数据库查询实现，支持关键词匹配标题、按站点隔离、按栏目筛选、发布时间倒序和分页展示。搜索不匹配正文、摘要或附件，不提供关键词高亮、热门搜索或搜索日志统计。公开查询同时过滤停用栏目、草稿、下线和未到发布时间的内容。后续如需全文检索，可接入 Elasticsearch 或 MySQL Fulltext。
 
 ### 5.9 日志
 
@@ -564,7 +564,7 @@ GET /api/portal/columns/{id}
 GET /api/portal/columns/{id}/contents?pageNo={pageNo}&pageSize={pageSize}
 GET /api/portal/contents/{id}
 PUT /api/portal/contents/{id}/view-count
-GET /api/portal/search
+GET /api/portal/search?keyword={keyword}&siteType={siteType}&columnId={columnId}&pageNo={pageNo}&pageSize={pageSize}
 GET /api/portal/friend-links?siteType={siteType}
 GET /api/portal/recruit/home
 GET /api/portal/pages/{pageCode}
@@ -1589,6 +1589,26 @@ CONTENT_SELECT  内容选择
 内容详情固定返回 `id`、栏目标识与名称、`siteType`、标题、副标题、摘要、已清洗正文、封面、来源、作者、发布时间、浏览量、受控 `extensionData`、`attachments` 和 `seo`。附件只返回 `id`、文件名、公开地址、大小、类型和排序，不返回内部 `mediaId`、内容关联 ID 或审计时间。内容仅在所属栏目已启用、状态为 `PUBLISHED`、`publishAt` 非空且不晚于服务器当前时间时可访问；其余情况统一返回 HTTP 404。
 
 栏目详情和内容详情在完成公开状态校验后复用 `SeoMetadataService`，按 5.7 节规则返回 `title`、`keywords`、`description` 和 `canonicalPath`。本轮列表与详情直接查询 local/MySQL 仓储，不启用结果缓存，后台发布、下线或栏目停用后立即影响公开结果。
+
+#### 14.7.6 公开搜索、浏览量与时间边界契约
+
+`GET /api/portal/search` 允许匿名访问，查询参数如下：
+
+| 参数 | 规则 |
+| --- | --- |
+| `keyword` | 必填，去除首尾空白后按内容标题包含匹配，最长 100 个字符 |
+| `siteType` | 必填，只接受 `MAIN_SITE` 或 `RECRUIT_SITE` |
+| `columnId` | 可选；填写时栏目必须已启用且属于目标站点，否则返回 HTTP 404 |
+| `pageNo` | 可选，默认 `1`，最小 `1` |
+| `pageSize` | 可选，默认 `10`，范围 `1-100` |
+
+搜索计数和分页查询使用同一组条件：栏目已启用且与目标站点一致，内容状态为 `PUBLISHED`，`publishAt` 非空且不晚于服务器当前时间，标题包含关键词，并在指定时限制栏目 ID。结果按 `publishAt`、`id` 降序返回；首版不搜索副标题、摘要、正文或附件，不执行高亮、分词、相关度评分、热门搜索或搜索日志统计。
+
+搜索响应固定返回 `keyword`、`siteType`、`columnId`、`seo`、`records`、`total`、`pageNo` 和 `pageSize`。`records` 复用公开内容摘要字段；空结果返回空数组及 `total = 0`。`seo` 复用 `SeoMetadataService.resolvePage(siteType, "/search")`，标题、关键词和描述回退到目标站点默认 SEO，canonical 路径固定为 `/search`，查询字符串不进入 canonical。
+
+`PUT /api/portal/contents/{id}/view-count` 是唯一允许匿名调用的 Portal 写接口。MySQL 使用带公开状态条件的原子 `view_count = view_count + 1`，local 实现使用同步更新；只有所属栏目启用、内容已发布且已到发布时间时才能递增，否则统一返回 HTTP 404。成功响应返回内容 `id` 和递增后的 `viewCount`。本期浏览量是轻量展示计数，不按 IP、设备、会话或时间窗口去重，不用于复杂 BI 或精确流量审计。
+
+所有公开时间判断使用服务器当前时间并采用包含边界：内容满足 `publishAt <= now` 时生效；Banner 满足 `startTime` 为空或 `startTime <= now`，同时 `endTime` 为空或 `endTime >= now` 时生效。local 与 MySQL 必须保持相同判断，不允许通过先分页后过滤造成 total、records 或公开状态不一致。
 
 ### 14.8 SEO 数据与接口输出规则
 
