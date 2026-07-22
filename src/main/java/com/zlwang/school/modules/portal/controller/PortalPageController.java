@@ -5,6 +5,7 @@ import com.zlwang.school.modules.page.model.PageCode;
 import com.zlwang.school.modules.portal.service.PortalPageService;
 import com.zlwang.school.modules.portal.vo.PortalPageResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +25,10 @@ public class PortalPageController {
 
     @Operation(summary = "查询公开页面聚合数据")
     @GetMapping("/pages/{pageCode}")
-    public ApiResult<PortalPageResponse> findPage(@PathVariable PageCode pageCode) {
+    public ApiResult<PortalPageResponse> findPage(
+        @Parameter(description = "页面编码", example = "HOME")
+        @PathVariable PageCode pageCode
+    ) {
         return ApiResult.success(portalPageService.findPage(pageCode));
     }
 

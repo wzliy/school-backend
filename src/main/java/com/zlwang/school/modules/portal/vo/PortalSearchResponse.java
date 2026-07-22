@@ -3,8 +3,13 @@ package com.zlwang.school.modules.portal.vo;
 import com.zlwang.school.common.api.PageResult;
 import com.zlwang.school.modules.seo.model.SeoMetadata;
 import com.zlwang.school.modules.template.model.SiteType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
+@Schema(
+    description = "公开内容搜索结果",
+    example = "{\"keyword\":\"校园新闻\",\"siteType\":\"MAIN_SITE\",\"columnId\":101,\"seo\":{\"title\":\"高校官网\",\"canonicalPath\":\"/search\"},\"records\":[],\"total\":0,\"pageNo\":1,\"pageSize\":10}"
+)
 public record PortalSearchResponse(
     String keyword,
     SiteType siteType,

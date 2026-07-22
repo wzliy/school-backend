@@ -1,8 +1,13 @@
 package com.zlwang.school.modules.portal.vo;
 
 import com.zlwang.school.modules.content.model.CmsContent;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
+@Schema(
+    description = "公开内容摘要",
+    example = "{\"id\":1001,\"columnId\":101,\"columnName\":\"新闻中心\",\"title\":\"校园新闻\",\"summary\":\"新闻摘要\",\"publishAt\":\"2026-07-22T09:00:00\",\"topFlag\":false,\"recommendFlag\":true,\"viewCount\":120}"
+)
 public record PortalContentSummaryResponse(
     long id,
     long columnId,

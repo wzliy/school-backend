@@ -2,9 +2,14 @@ package com.zlwang.school.modules.portal.vo;
 
 import com.zlwang.school.modules.page.model.PageSection;
 import com.zlwang.school.modules.page.model.PageSectionType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.Map;
 
+@Schema(
+    description = "公开页面区块，未使用的数据槽返回空数组或空对象",
+    example = "{\"sectionCode\":\"SCHOOL_NEWS\",\"sectionName\":\"学校新闻\",\"sectionType\":\"CONTENT_FEED\",\"displayCount\":6,\"displayStyle\":\"IMAGE_TEXT\",\"config\":{},\"sortNo\":20,\"banners\":[],\"contents\":[],\"links\":[],\"friendLinks\":[],\"contact\":{}}"
+)
 public record PortalPageSectionResponse(
     String sectionCode,
     String sectionName,

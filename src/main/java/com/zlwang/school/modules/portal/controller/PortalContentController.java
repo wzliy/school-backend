@@ -13,6 +13,7 @@ import com.zlwang.school.modules.portal.vo.PortalSearchResponse;
 import com.zlwang.school.modules.portal.vo.PortalViewCountResponse;
 import com.zlwang.school.modules.template.model.SiteType;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -41,6 +42,7 @@ public class PortalContentController {
     @Operation(summary = "查询公开栏目树")
     @GetMapping("/columns")
     public ApiResult<List<PortalColumnTreeNodeResponse>> findColumnTree(
+        @Parameter(description = "目标站点", example = "MAIN_SITE")
         @RequestParam SiteType siteType
     ) {
         return ApiResult.success(portalContentService.findColumnTree(siteType));
@@ -49,6 +51,7 @@ public class PortalContentController {
     @Operation(summary = "查询公开栏目详情")
     @GetMapping("/columns/{id}")
     public ApiResult<PortalColumnDetailResponse> findColumn(
+        @Parameter(description = "栏目 ID", example = "101")
         @Positive @PathVariable long id
     ) {
         return ApiResult.success(portalContentService.findColumn(id));
@@ -57,6 +60,7 @@ public class PortalContentController {
     @Operation(summary = "分页查询栏目公开内容")
     @GetMapping("/columns/{id}/contents")
     public ApiResult<PageResult<PortalContentSummaryResponse>> findContents(
+        @Parameter(description = "栏目 ID", example = "101")
         @Positive @PathVariable long id,
         @Valid @ParameterObject PortalContentPageQuery query
     ) {
@@ -66,6 +70,7 @@ public class PortalContentController {
     @Operation(summary = "查询公开内容详情及附件")
     @GetMapping("/contents/{id}")
     public ApiResult<PortalContentDetailResponse> findContent(
+        @Parameter(description = "内容 ID", example = "1001")
         @Positive @PathVariable long id
     ) {
         return ApiResult.success(portalContentService.findContent(id));
@@ -82,6 +87,7 @@ public class PortalContentController {
     @Operation(summary = "增加公开内容浏览量")
     @PutMapping("/contents/{id}/view-count")
     public ApiResult<PortalViewCountResponse> incrementViewCount(
+        @Parameter(description = "内容 ID", example = "1001")
         @Positive @PathVariable long id
     ) {
         return ApiResult.success(portalContentService.incrementViewCount(id));

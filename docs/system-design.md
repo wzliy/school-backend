@@ -597,16 +597,18 @@ GET /api/portal/pages/{pageCode}
 
 ## 9. 缓存设计
 
-首版缓存以简单、可失效为原则：
+首版不启用 Spring Cache、Redis 或本地结果缓存。Portal 页面聚合、站点配置、导航、Banner、友情链接、栏目、内容和搜索均在每次请求时读取当前仓储数据，后台发布、下线、启停或配置修改后，下一次 Portal 请求必须立即反映新状态。Portal 响应保留 Spring Security 默认的 `Cache-Control: no-cache, no-store` 等缓存控制头，避免浏览器或中间代理返回陈旧结果。这样符合当前轻量化访问规模，也避免在没有明确容量数据时引入缓存一致性和运维成本。
 
-| 缓存对象 | Key 示例 | 失效策略 |
+若后续监控表明确显示数据库读取成为瓶颈，可按以下 Key 规划启用 Redis：
+
+| 缓存对象 | 预留 Key 示例 | 启用后的失效策略 |
 | --- | --- | --- |
-| 站点配置 | `site:config` | 修改配置后删除 |
+| 站点配置 | `site:config:{siteType}` | 修改全局或对应站点配置后删除 |
 | 导航栏目 | `site:navigation:{siteType}` | 修改栏目后删除 |
-| 首页 Banner | `site:banner:{position}` | 修改 Banner 后删除 |
-| 友情链接 | `site:friend-links` | 修改友情链接后删除 |
+| 首页 Banner | `site:banner:{siteType}:{position}` | 修改 Banner 后删除 |
+| 友情链接 | `site:friend-links:{siteType}` | 修改全局或对应站点友情链接后删除 |
 
-内容详情和列表首版可直接查库，待访问量上升后再增加缓存。
+未来启用缓存时，必须同时实现后台写操作主动失效、TTL 兜底、站点隔离和并发一致性测试，不能只添加读缓存。内容详情、列表、搜索和浏览量默认继续直查；浏览量写入不使用普通结果缓存。
 
 ## 10. 文件存储设计
 
@@ -1609,6 +1611,26 @@ CONTENT_SELECT  内容选择
 `PUT /api/portal/contents/{id}/view-count` 是唯一允许匿名调用的 Portal 写接口。MySQL 使用带公开状态条件的原子 `view_count = view_count + 1`，local 实现使用同步更新；只有所属栏目启用、内容已发布且已到发布时间时才能递增，否则统一返回 HTTP 404。成功响应返回内容 `id` 和递增后的 `viewCount`。本期浏览量是轻量展示计数，不按 IP、设备、会话或时间窗口去重，不用于复杂 BI 或精确流量审计。
 
 所有公开时间判断使用服务器当前时间并采用包含边界：内容满足 `publishAt <= now` 时生效；Banner 满足 `startTime` 为空或 `startTime <= now`，同时 `endTime` 为空或 `endTime >= now` 时生效。local 与 MySQL 必须保持相同判断，不允许通过先分页后过滤造成 total、records 或公开状态不一致。
+
+#### 14.7.7 Portal DTO、OpenAPI 与空数据契约
+
+Portal API 使用独立响应 DTO，不直接返回后台栏目、内容、Banner 或友情链接实体。`PortalPageResponse`、`PortalPageSectionResponse`、`PortalSiteConfigResponse`、`PortalColumnTreeNodeResponse`、`PortalColumnDetailResponse`、`PortalContentSummaryResponse`、`PortalContentDetailResponse`、`PortalSearchResponse` 和 `PortalViewCountResponse` 均在 OpenAPI 组件中提供用途说明和可解析 JSON 示例。
+
+查询参数在 OpenAPI 中明确提供说明、示例、默认值和边界。`PortalContentPageQuery` 与 `PortalSearchQuery` 使用参数对象展开，生成文档必须显示独立的 `keyword`、`siteType`、`columnId`、`pageNo` 和 `pageSize`，不能折叠为含义不明的单个 `query` 参数。页面编码、站点、Banner 位置、栏目 ID 和内容 ID 同样提供调用示例。
+
+空数据结构固定如下：
+
+| 场景 | 响应规则 |
+| --- | --- |
+| 普通集合 | 返回 `[]`，不返回 `null` |
+| 分页列表与搜索 | 返回 `records: []`、真实 `total`、`pageNo` 和 `pageSize` |
+| 页面区块 | `banners`、`contents`、`links`、`friendLinks` 固定为数组；`config`、`contact` 固定为对象 |
+| 栏目树 | 每个节点固定返回 `children` 数组，叶子节点为 `[]` |
+| 站点配置与 SEO | 合法请求返回对象；缺失可选值使用空字符串、空对象或字段级 `null` 契约，不省略顶层对象 |
+
+自动化测试直接解析 `/v3/api-docs`，校验全部 Portal 路径、HTTP 方法、搜索参数、分页默认值/上限和关键 DTO 示例。空数据测试遍历页面区块和栏目树，保证集合及对象槽稳定。
+
+当前实现不启用服务端结果缓存，因此所谓“缓存失效”按即时一致性契约验证：后台修改站点配置，以及新增、停用导航栏目、Banner、友情链接后，紧随其后的 Portal 请求必须读取最新状态。未来启用 Redis 后应保留同一组 HTTP 测试，并在其下补充缓存 Key 删除和 TTL 测试。
 
 ### 14.8 SEO 数据与接口输出规则
 

@@ -5,8 +5,13 @@ import com.zlwang.school.modules.seo.model.SeoMetadata;
 import com.zlwang.school.modules.template.model.ColumnType;
 import com.zlwang.school.modules.template.model.PageTemplateKey;
 import com.zlwang.school.modules.template.model.SiteType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.Map;
 
+@Schema(
+    description = "公开栏目详情",
+    example = "{\"id\":101,\"parentId\":0,\"siteType\":\"MAIN_SITE\",\"name\":\"新闻中心\",\"code\":\"news\",\"columnType\":\"LIST\",\"routePath\":\"/news\",\"templateKey\":\"ARTICLE_LIST\",\"detailTemplateKey\":\"ARTICLE_DETAIL\",\"templateConfig\":{\"page\":{\"pageSize\":10}},\"seo\":{\"title\":\"新闻中心\",\"keywords\":\"高校,新闻\",\"description\":\"校园新闻\",\"canonicalPath\":\"/news\"}}"
+)
 public record PortalColumnDetailResponse(
     long id,
     long parentId,
